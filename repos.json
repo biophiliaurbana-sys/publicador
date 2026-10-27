@@ -1,4 +1,7 @@
 {
   "_nota": "Repos privados de marca que dejan sus videos como releases (ver redes/github.py). Se leen con el secreto LLAVE_REPOS.",
-  "repos": ["biophiliaurbana-sys/entrenando-mentes"]
+  "repos": [
+    "biophiliaurbana-sys/entrenando-mentes",
+    "biophiliaurbana-sys/buscadores-de-la-verdad"
+  ]
 }
