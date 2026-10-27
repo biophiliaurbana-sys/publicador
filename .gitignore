@@ -1,0 +1,4 @@
+bajados/
+__pycache__/
+*.pyc
+.env

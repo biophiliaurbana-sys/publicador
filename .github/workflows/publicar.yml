@@ -1,0 +1,36 @@
+# Cada hora revisa la cola (releases "pre-release") y sube a su hora lo que toca. Ver README.md.
+# A mano: botón "Run workflow" (con "solo probar" no publica: muestra la cola y revisa las claves).
+name: Publicar
+
+on:
+  schedule:
+    - cron: "5 * * * *"   # a los :05 de cada hora (GitHub a veces parte unos minutos tarde)
+  workflow_dispatch:
+    inputs:
+      solo_probar:
+        description: "Solo probar (no publica nada)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write   # marcar en la cola lo que ya salió
+  issues: write     # avisos cuando algo no sale
+
+concurrency:
+  group: publicar
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Publicar lo que toca
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SECRETOS: ${{ toJSON(secrets) }}   # cada página dice en paginas/*.json qué secreto usa
+        run: python publicar.py ${{ inputs.solo_probar && '--prueba' || '' }}
