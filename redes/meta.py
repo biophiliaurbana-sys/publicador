@@ -92,15 +92,34 @@ def enlace_oculto(token, video):
     raise ErrorMeta("Facebook no entregó el enlace del video oculto para Instagram.")
 
 
-def instagram(token, video, texto, ligero=False):
+def enlace_portada(token, archivo):
+    """Instagram pide la portada como enlace: se sube como foto OCULTA (sin publicar) a la página y se usa su enlace."""
+    yo = cuenta(token)
+    limite = "----publicador" + str(int(time.time()))
+    cuerpo = (f"--{limite}\r\nContent-Disposition: form-data; name=\"published\"\r\n\r\nfalse\r\n"
+              f"--{limite}\r\nContent-Disposition: form-data; name=\"source\"; filename=\"portada.jpg\"\r\n"
+              f"Content-Type: image/jpeg\r\n\r\n").encode() + open(archivo, "rb").read() + f"\r\n--{limite}--\r\n".encode()
+    f = pedir("POST", f"{API}/{yo['id']}/photos?access_token={token}", cuerpo=cuerpo,
+              cabeceras={"Content-Type": f"multipart/form-data; boundary={limite}"})
+    imagenes = pedir("GET", f"{API}/{f['id']}?fields=images&access_token={token}").get("images") or []
+    return max(imagenes, key=lambda i: i.get("width", 0))["source"]
+
+
+def instagram(token, video, texto, ligero=False, portada=None):
     ig = (cuenta(token).get("instagram_business_account") or {}).get("id")
     if not ig:
         raise ErrorMeta("La página no tiene un Instagram profesional conectado.")
     if ligero:
         video = version_ligera(video)
+    extra = {}
+    if portada:
+        try:
+            extra["cover_url"] = enlace_portada(token, portada)
+        except Exception as e:   # sin portada igual se publica
+            print(f"aviso: no pude preparar la portada para Instagram ({e})")
     for n in range(3):   # a ratos Meta rechaza la subida y minutos después la acepta
         c = pedir("POST", f"{API}/{ig}/media", {"media_type": "REELS", "upload_type": "resumable", "caption": texto,
-                                               "share_to_feed": "true", "access_token": token})
+                                               "share_to_feed": "true", "access_token": token, **extra})
         try:
             subir(c["uri"], token, video)
             break
@@ -109,7 +128,8 @@ def instagram(token, video, texto, ligero=False):
             if n == 2:
                 # plan B: el video se sube oculto a la página de Facebook y se le pasa a Instagram ese enlace
                 c = pedir("POST", f"{API}/{ig}/media", {"media_type": "REELS", "video_url": enlace_oculto(token, video),
-                                                       "caption": texto, "share_to_feed": "true", "access_token": token})
+                                                       "caption": texto, "share_to_feed": "true", "access_token": token,
+                                                       **extra})
                 break
             print("reintento en 2 minutos")
             time.sleep(120)
