@@ -8,6 +8,7 @@ Este repo publica videos en Facebook, Instagram y YouTube a su hora. Lee README.
 - "¿Qué hay en la cola?" → la planilla de la cola (pestaña `cola`); la columna G dice el estado de cada video.
 - "Saca/cambia un video de la cola" → borra o edita su fila, solo si la columna G no dice ✅.
 - "Frena tal video" → `python frenar.py <link de Drive>` (marca ⛔ en la columna G; no borra nada).
+- Páginas que se arman solas (repos de `repos.json`): su cola son los *releases* de su repo privado; frenar = poner ⛔ al inicio del título del release.
 - "¿Por qué no salió?" → columna G de su fila, los avisos (issues) y la última corrida de *Actions → Publicar*.
 
 Reglas:

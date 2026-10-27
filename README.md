@@ -13,6 +13,14 @@ quedan **privados en tu Google Drive**, la cola es una **planilla tuya** y las c
 4. Cuando un video ya salió en todas sus redes, se manda a la **papelera** de Drive (Google lo borra a los 30 días).
 5. En la columna **estado** ves qué pasó con cada video: 🕒 en cola, ⏳ reintentando, ✅ publicado, ⚠️ problema.
 
+## Páginas que arman su contenido solas (sin Drive)
+
+Entrenando Mentes, Buscadores, etc. arman su video en su **repo privado** y lo dejan ahí como un *release*
+(con el `.mp4` adjunto y una marca oculta con página, fecha y hora; ver `redes/github.py`). Cada hora el publicador
+revisa los repos de `repos.json` con el secreto **`LLAVE_REPOS`** (una llave de GitHub *fine-grained*, solo con
+esos repos y permiso *Contents: Read and write*). El título del release muestra el estado (🕒 ⏳ ✅ ⚠️); si empieza
+con ⛔ no sale. Cuando ya salió en todas sus redes, se borra el video adjunto (el release queda como registro).
+
 ## La planilla (pestaña `cola`)
 
 | A página | B fecha | C hora | D video | E texto | F portada | G estado | H detalle |

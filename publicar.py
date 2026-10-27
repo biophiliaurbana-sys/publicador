@@ -6,6 +6,8 @@ La cola es una planilla de Google tuya (variable HOJA_COLA), pestaña "cola", un
   A página · B fecha · C hora (de Chile) · D video (link de Drive) · E texto · F portada (link, opcional)
   G estado y H detalle → los escribe el sistema; no los toques.
 <página> es un archivo de paginas/. Los videos quedan privados en tu Drive: nadie más los ve.
+Además revisa los *releases* de los repos privados de marca (repos.json, secreto LLAVE_REPOS): las páginas que
+arman su contenido solas dejan ahí su video, sin pasar por Drive (ver redes/github.py).
 Cada red se marca apenas sale, así un reintento nunca la repite. Si una red falla, las otras salen igual y la
 que falló se reintenta cada hora con una versión más liviana; a la 3.ª vuelta llega un aviso y a las 24 h se deja.
 Las claves vienen todas juntas en la variable SECRETOS (JSON); cada página dice en su archivo cuál usa."""
@@ -14,6 +16,7 @@ from zoneinfo import ZoneInfo
 AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
 from redes import google, meta, youtube
+from redes import github as gh_repos
 
 CHILE = ZoneInfo("America/Santiago")
 VENCE_HORAS = 24
@@ -83,63 +86,124 @@ def publicar_en(red, pag, video, texto, portada, ligero):
     raise RuntimeError(f"No conozco la red '{red}'.")
 
 
-def revisar(token, n, fila, ahora):
-    """n = número de fila en la planilla (la 1 son los títulos)."""
-    fila = (fila + [""] * 8)[:8]
-    nombre, fecha, hora, video, texto, portada, resumen_actual, detalle = fila
-    if not nombre.strip() or not video.strip():
-        return
-    estado = json.loads(detalle) if detalle.strip().startswith("{") else {}
-    if estado.get("listo") or estado.get("vencido"):
-        return
-    if resumen_actual.strip().startswith("⛔"):   # frenado (a mano o con "frenar" en el aviso): no se publica
-        print(f"· fila {n}: frenado, no se publica")
-        return
+class Fila:
+    """Un video de la planilla (cola hecha a mano: Biophilia, tiendas…). n = número de fila (la 1 son los títulos)."""
+    def __init__(self, token, n, fila):
+        fila = (fila + [""] * 8)[:8]
+        self.token, self.n = token, n
+        self.nombre, self.fecha, self.hora, self.video, self.texto, self.portada, self.resumen, self.detalle = fila
+        self.etiqueta = f"fila {n}"
+        self.vacia = not self.nombre.strip() or not self.video.strip()
+        self.estado = json.loads(self.detalle) if self.detalle.strip().startswith("{") else {}
 
-    def guardar(resumen):
-        nuevo = json.dumps(estado, ensure_ascii=False)
-        if not PRUEBA and (resumen, nuevo) != (resumen_actual, detalle or "{}"):   # solo si cambió algo
+    def guardar(self, resumen):
+        nuevo = json.dumps(self.estado, ensure_ascii=False)
+        if (resumen, nuevo) != (self.resumen, self.detalle or "{}"):   # solo si cambió algo
+            google.escribir(self.token, HOJA, f"{COLA}!G{self.n}:H{self.n}", [[resumen, nuevo]])
+            self.resumen, self.detalle = resumen, nuevo
 
-            google.escribir(token, HOJA, f"{COLA}!G{n}:H{n}", [[resumen, nuevo]])
+    def bajar(self, carpeta):
+        archivo = os.path.join(carpeta, "video.mp4")
+        if not os.path.exists(archivo):
+            google.bajar(self.token, google.id_drive(self.video), archivo)
+        portada = None
+        if self.portada.strip():
+            portada = google.bajar(self.token, google.id_drive(self.portada), os.path.join(carpeta, "portada.jpg"))
+        return archivo, portada
 
-    pag = pagina(nombre)
+    def limpiar(self):
+        # ya salió en todas sus redes: el video (y su portada) van a la papelera de Drive para no llenarlo (Danko 27-oct)
+        for link in (self.video, self.portada):
+            if link.strip():
+                google.a_papelera(self.token, google.id_drive(link))
+
+
+class Lanzamiento:
+    """Un video guardado como release en el repo privado de una marca (contenido que se arma solo; sin Drive)."""
+    def __init__(self, llave, repo, rel):
+        self.llave, self.repo, self.id = llave, repo, rel["id"]
+        self.marca, self.texto = gh_repos.leer_marca(rel.get("body"))
+        self.vacia = self.marca is None or rel.get("draft")
+        m = self.marca or {}
+        self.nombre, self.fecha, self.hora = m.get("pagina", ""), m.get("fecha", ""), m.get("hora", "")
+        self.estado = m.get("estado") or {}
+        self.resumen = rel.get("name") or ""
+        self.titulo = m.get("titulo") or f"{self.nombre} · {self.fecha} {self.hora}"
+        self.etiqueta = f"{repo.split('/')[-1]} {rel.get('tag_name')}"
+        self.archivos = rel.get("assets") or []
+        self.cuerpo = rel.get("body") or ""
+
+    def guardar(self, resumen):
+        nombre = f"{resumen} · {self.titulo}"[:250]
+        cuerpo = gh_repos.poner_marca(self.texto, {**self.marca, "estado": self.estado})
+        if (nombre, cuerpo) != (self.resumen, self.cuerpo):   # solo si cambió algo
+            gh_repos.editar(self.llave, self.repo, self.id, name=nombre, body=cuerpo)
+            self.resumen, self.cuerpo = nombre, cuerpo
+
+    def _archivo(self, *extensiones):
+        return next((a for a in self.archivos if a["name"].lower().endswith(extensiones)), None)
+
+    def bajar(self, carpeta):
+        video = self._archivo(".mp4", ".mov")
+        if not video:
+            raise RuntimeError("el release no tiene video (.mp4)")
+        archivo = os.path.join(carpeta, "video.mp4")
+        if not os.path.exists(archivo):
+            gh_repos.bajar(self.llave, self.repo, video["id"], archivo)
+        portada = self._archivo(".jpg", ".jpeg", ".png")
+        if portada:
+            portada = gh_repos.bajar(self.llave, self.repo, portada["id"], os.path.join(carpeta, "portada.jpg"))
+        return archivo, portada
+
+    def limpiar(self):
+        # ya salió: se borra el video adjunto para no llenar GitHub (el release queda como registro, con su texto)
+        for a in self.archivos:
+            gh_repos.borrar_archivo(self.llave, self.repo, a["id"])
+
+
+def revisar(item, ahora):
+    """Un video de la cola (Fila o Lanzamiento): lo publica si ya le tocó y anota cómo le fue."""
+    if item.vacia or item.estado.get("listo") or item.estado.get("vencido"):
+        return
+    if item.resumen.strip().startswith("⛔"):   # frenado (a mano o con "frenar" en el aviso): no se publica
+        print(f"· {item.etiqueta}: frenado, no se publica")
+        return
+    estado = item.estado
+    guardar = (lambda resumen: None) if PRUEBA else item.guardar
+
+    pag = pagina(item.nombre)
     try:
-        momento = cuando(fecha, hora)
+        momento = cuando(item.fecha, item.hora)
     except ValueError as e:
-        print(f"· fila {n}: {e}")
+        print(f"· {item.etiqueta}: {e}")
         guardar(f"⚠️ {e}")
         return
     if not pag:
-        print(f"· fila {n}: no existe la página '{nombre}'")
-        guardar(f"⚠️ no existe la página '{nombre}'")
+        print(f"· {item.etiqueta}: no existe la página '{item.nombre}'")
+        guardar(f"⚠️ no existe la página '{item.nombre}'")
         return
     hechas = set(estado.get("hechas", []))
     faltan = [r for r in pag["redes"] if r not in hechas]
-    print(f"· fila {n}: {nombre} {momento:%d/%m %H:%M} · falta: {', '.join(faltan)}")
+    print(f"· {item.etiqueta}: {item.nombre} {momento:%d/%m %H:%M} · falta: {', '.join(faltan)}")
     if ahora < momento:
         guardar(f"🕒 en cola para el {momento:%d/%m} a las {momento:%H:%M}")
         return
     if ahora > momento + datetime.timedelta(hours=VENCE_HORAS):
         estado["vencido"] = True
         avisar(f"⚠️ {pag['nombre']}: no salió en {', '.join(faltan)}",
-               f"El video de la fila {n} ({momento:%d/%m %H:%M}) no se pudo subir a {', '.join(faltan)} en 24 horas; "
+               f"El video ({item.etiqueta}, {momento:%d/%m %H:%M}) no se pudo subir a {', '.join(faltan)} en 24 horas; "
                f"ya no lo intento.\n\nÚltimo error: `{estado.get('error', 'sin detalle')}`")
         guardar(f"⚠️ no salió en {', '.join(faltan)}" + (f" (sí en {', '.join(sorted(hechas))})" if hechas else ""))
         return
     if PRUEBA:
         print(f"  (prueba) ahora se publicaría en: {', '.join(faltan)}")
         return
-    carpeta = os.path.join(AQUI, "bajados", str(n))
+    carpeta = os.path.join(AQUI, "bajados", re.sub(r"[^\w.-]", "_", item.etiqueta))
     os.makedirs(carpeta, exist_ok=True)
-    archivo = os.path.join(carpeta, "video.mp4")
-    if not os.path.exists(archivo):
-        google.bajar(token, google.id_drive(video), archivo)
-    portada_archivo = None
-    if portada.strip():
-        portada_archivo = google.bajar(token, google.id_drive(portada), os.path.join(carpeta, "portada.jpg"))
+    archivo, portada_archivo = item.bajar(carpeta)
     for red in faltan:
         try:
-            ident = publicar_en(red, pag, archivo, texto, portada_archivo, ligero=estado.get("intentos", 0) > 0)
+            ident = publicar_en(red, pag, archivo, item.texto, portada_archivo, ligero=estado.get("intentos", 0) > 0)
             hechas.add(red)
             print(f"  ✅ {red}: publicado ({ident})")
         except Exception as ex:
@@ -150,17 +214,14 @@ def revisar(token, n, fila, ahora):
     if set(pag["redes"]) <= hechas:
         estado["listo"] = True
         guardar(f"✅ publicado en {', '.join(pag['redes'])} ({ahora:%d/%m %H:%M})")
-        # ya salió en todas sus redes: el video (y su portada) van a la papelera de Drive para no llenarlo (Danko 27-oct)
-        for link in (video, portada):
-            if link.strip():
-                try:
-                    google.a_papelera(token, google.id_drive(link))
-                except Exception as ex:
-                    print(f"  (no se pudo mandar a la papelera: {' '.join(str(ex).split())[:150]})")
+        try:
+            item.limpiar()
+        except Exception as ex:
+            print(f"  (no se pudo borrar el video ya publicado: {' '.join(str(ex).split())[:150]})")
     else:
         estado["intentos"] = estado.get("intentos", 0) + 1
         if estado["intentos"] == 3:
-            avisar(f"⏳ {pag['nombre']}: problemas para subir el video de la fila {n}",
+            avisar(f"⏳ {pag['nombre']}: problemas para subir un video ({item.etiqueta})",
                    f"Lo sigo intentando solo cada hora; no tienes que hacer nada.\n\nError: `{estado.get('error')}`")
         guardar(f"⏳ reintento cada hora ({estado.get('error', '')[:80]})"
                 + (f" · ya salió en {', '.join(sorted(hechas))}" if hechas else ""))
@@ -188,20 +249,40 @@ def probar_claves():
                 print(f"{nombre}: YouTube NO funciona ({ex})")
 
 
+def repos_de_marca():
+    try:
+        return json.load(open(os.path.join(AQUI, "repos.json"), encoding="utf-8")).get("repos", [])
+    except OSError:
+        return []
+
+
 def main():
     ahora = datetime.datetime.now(CHILE)
     print(f"Hora de Chile: {ahora:%Y-%m-%d %H:%M}")
     if PRUEBA:
         probar_claves()
-    if not HOJA:
-        sys.exit("Falta la variable HOJA_COLA (el ID de la planilla de la cola).")
-    token = acceso_google()
-    filas = google.leer(token, HOJA, f"{COLA}!A2:H")
-    for i, fila in enumerate(filas, start=2):
+    items = []
+    if HOJA:   # 1) la planilla (videos hechos a mano, en Drive)
+        token = acceso_google()
+        items += [Fila(token, i, f) for i, f in enumerate(google.leer(token, HOJA, f"{COLA}!A2:H"), start=2)]
+    else:
+        print("(sin planilla: falta la variable HOJA_COLA)")
+    llave = SECRETOS.get("LLAVE_REPOS")
+    for repo in repos_de_marca():   # 2) los releases de los repos privados de marca (videos que se arman solos)
+        if not llave:
+            print(f"{repo}: falta el secreto LLAVE_REPOS (llave de GitHub para leer los repos privados)")
+            break
         try:
-            revisar(token, i, fila, ahora)
-        except Exception as ex:   # una fila mala no frena a las demás
-            print(f"· fila {i}: error inesperado: {ex}")
+            items += [Lanzamiento(llave, repo, r) for r in gh_repos.releases(llave, repo)]
+            if PRUEBA:
+                print(f"{repo}: llave de GitHub OK")
+        except Exception as ex:
+            print(f"{repo}: no pude leer sus videos ({ex})")
+    for item in items:
+        try:
+            revisar(item, ahora)
+        except Exception as ex:   # un video malo no frena a los demás
+            print(f"· {item.etiqueta}: error inesperado: {ex}")
 
 
 if __name__ == "__main__":
