@@ -1,4 +1,4 @@
-# Cada hora revisa la cola (planilla de Google, variable HOJA_COLA) y sube a su hora lo que toca. Ver README.md.
+# Cada hora revisa la cola (planilla de Google, variable HOJA_COLA) y sube a su hora lo que toca. Ver README.md..
 # A mano: botón "Run workflow" (con "solo probar" no publica: muestra la cola y revisa las claves).
 name: Publicar
 
