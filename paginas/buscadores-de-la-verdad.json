@@ -1,6 +1,6 @@
 {
   "nombre": "Buscadores de la Verdad",
-  "redes": ["facebook"],
+  "redes": ["facebook", "youtube"],
   "meta": "META_BUSCADORES",
   "youtube": "YT_BUSCADORES"
 }
