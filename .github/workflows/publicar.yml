@@ -4,7 +4,7 @@ name: Publicar
 
 on:
   schedule:
-       - cron: "7,22,37,52 * * * *"   # a los :05 de cada hora (GitHub a veces parte unos minutos tarde)
+    - cron: "7,22,37,52 * * * *"   # cada 15 min (GitHub a veces parte tarde)
   workflow_dispatch:
     inputs:
       solo_probar:
