@@ -13,7 +13,9 @@ if len(args) >= 2:
 else:
     carpetas = [os.getcwd(), os.path.dirname(os.path.abspath(__file__)), os.path.expanduser("~/Downloads"),
                 os.path.expanduser("~/Descargas")]
-    archivos = [f for c in carpetas for f in sorted(glob.glob(os.path.join(c, "client_secret*.json")), key=os.path.getmtime)]
+    # el de esta carpeta gana; si no hay, el más nuevo de Descargas
+    archivos = next((sorted(glob.glob(os.path.join(c, "client_secret*.json")), key=os.path.getmtime)
+                     for c in carpetas if glob.glob(os.path.join(c, "client_secret*.json"))), [])
     if not archivos:
         sys.exit("No encuentro el archivo client_secret_....json. Déjalo en la misma carpeta que este script.\n" + __doc__)
     datos_cliente = json.load(open(archivos[-1], encoding="utf-8"))
@@ -21,7 +23,7 @@ else:
     CLIENTE, SECRETO = datos_cliente.get("client_id"), datos_cliente.get("client_secret")
     if not (CLIENTE and SECRETO):
         sys.exit(f"El archivo {archivos[-1]} no tiene client_id/client_secret.")
-    print("Usando", os.path.basename(archivos[-1]))
+    print("Usando", archivos[-1])
 PUERTO = 8765
 REDIRECT = f"http://localhost:{PUERTO}"
 ALCANCES = (["https://www.googleapis.com/auth/youtube.upload"] if "--youtube" in sys.argv else
@@ -62,5 +64,12 @@ if not codigo.get("valor"):
 datos = urllib.parse.urlencode({"code": codigo["valor"], "client_id": CLIENTE, "client_secret": SECRETO,
                                 "redirect_uri": REDIRECT, "grant_type": "authorization_code"}).encode()
 r = json.load(urllib.request.urlopen(urllib.request.Request("https://oauth2.googleapis.com/token", data=datos)))
-print("\nTu refresh token (guárdalo como secreto en GitHub):\n")
-print(r.get("refresh_token") or f"Google no lo entregó: {r}")
+if not r.get("refresh_token"):
+    sys.exit(f"Google no entregó el refresh token: {r}")
+print("\nGuarda estos secretos en GitHub (no los compartas con nadie). Van juntos: si cambias uno, cambia los tres.\n")
+if "--youtube" in sys.argv:
+    print("YT_<PÁGINA> =", r["refresh_token"])
+else:
+    print("GOOGLE_CLIENT_ID =", CLIENTE)
+    print("\nGOOGLE_CLIENT_SECRET =", SECRETO)
+    print("\nGOOGLE_REFRESH =", r["refresh_token"])
