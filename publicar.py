@@ -83,7 +83,7 @@ def publicar_en(red, pag, video, texto, portada, ligero):
             raise RuntimeError(f"Falta la clave {pag['meta']} en los secretos del repo.")
         if red == "facebook":
             return meta.facebook(token, video, texto, portada)
-        return meta.instagram(token, video, texto, ligero)
+        return meta.instagram(token, video, texto, ligero, portada)
     if red == "youtube":
         titulo = texto.strip().splitlines()[0] if texto.strip() else pag["nombre"]
         return youtube.subir(acceso_google(pag["youtube"]), video, titulo, texto, pag.get("youtube_privacidad", "public"))
