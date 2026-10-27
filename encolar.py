@@ -27,6 +27,7 @@ def main():
     ap.add_argument("--texto", default="")
     ap.add_argument("--texto-archivo")
     ap.add_argument("--portada")
+    ap.add_argument("--salida", help="archivo donde anotar el link del video en Drive (para avisos y frenar.py)")
     a = ap.parse_args()
     cargar_env()
     falta = [k for k in ("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REFRESH", "HOJA_COLA") if not os.environ.get(k)]
@@ -48,6 +49,8 @@ def main():
     portada = google.subir(token, a.portada, carpeta, f"{base}_portada.jpg", "image/jpeg") if a.portada else ""
     google.agregar(token, os.environ["HOJA_COLA"], "cola!A:F",
                    [[a.pagina, f"{cuando:%Y-%m-%d}", f"{cuando:%H:%M}", link, texto, portada]])
+    if a.salida:
+        open(a.salida, "w", encoding="utf-8").write(link)
     print(f"En la cola: {a.pagina} el {cuando:%d/%m} a las {cuando:%H:%M} (video en tu Drive: {link})")
 
 
