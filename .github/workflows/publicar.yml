@@ -11,6 +11,10 @@ on:
         description: "Solo probar (no publica nada)"
         type: boolean
         default: true
+      prueba_youtube:
+        description: "Subir un video de 3 s PRIVADO a cada canal de YouTube (para ver que cada llave va a su canal)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -34,4 +38,4 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           SECRETOS: ${{ toJSON(secrets) }}   # cada página dice en paginas/*.json qué secreto usa
           HOJA_COLA: ${{ vars.HOJA_COLA }}
-        run: python publicar.py ${{ inputs.solo_probar && '--prueba' || '' }}
+        run: python publicar.py ${{ inputs.prueba_youtube && '--prueba-youtube' || (inputs.solo_probar && '--prueba' || '') }}

@@ -259,7 +259,30 @@ def repos_de_marca():
         return []
 
 
+def prueba_youtube():
+    """Sube a cada canal un video de 3 s PRIVADO, con el nombre de la página en el título: así se ve en YouTube Studio
+    que cada llave sube al canal correcto. No publica nada visible."""
+    import subprocess
+    video = os.path.join(AQUI, "bajados", "prueba-youtube.mp4")
+    os.makedirs(os.path.dirname(video), exist_ok=True)
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=0x1b3a4b:s=1080x1920:d=3",
+                    "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-shortest", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                    "-c:a", "aac", video], check=True)
+    for nombre in sorted(f[:-5] for f in os.listdir(os.path.join(AQUI, "paginas")) if f.endswith(".json")):
+        pag = pagina(nombre)
+        if "youtube" not in pag["redes"]:
+            continue
+        try:
+            ident = youtube.subir(acceso_google(pag["youtube"]), video, f"Prueba del publicador · {pag['nombre']} (bórralo)",
+                                  "Video de prueba privado. Se puede borrar.", "private")
+            print(f"{nombre}: ✅ subido PRIVADO → https://studio.youtube.com/video/{ident}/edit")
+        except Exception as ex:
+            print(f"{nombre}: ❌ YouTube no lo aceptó ({' '.join(str(ex).split())[:300]})")
+
+
 def main():
+    if "--prueba-youtube" in sys.argv:
+        return prueba_youtube()
     ahora = datetime.datetime.now(CHILE)
     print(f"Hora de Chile: {ahora:%Y-%m-%d %H:%M}")
     if PRUEBA:
