@@ -1,7 +1,8 @@
 """RESUMEN · avisos diarios (issues con la etiqueta "resumen") para ver en la app de GitHub qué se creó y qué salió.
 Lo llama publicar.py al final de cada vuelta (cada 15 min); cada aviso sale una sola vez al día:
   · desde las 9:30 (Chile): si a alguna página le faltan videos de hoy (no se crearon), un aviso ⚠️ al tiro.
-  · desde las 22:30 (Chile): el resumen del día, página por página: qué se creó, qué salió y en qué redes, y los errores.
+  · desde las 22:30 (Chile): el resumen del día, página por página: qué se creó, qué salió y en qué redes, los errores
+    y las llaves (Meta, YouTube) que ya no funcionan.
 Cuántos videos se esperan al día: "por_dia" en paginas/*.json. El Dato de Fulvio publica desde su propio repo:
 se lee su aviso del día (issue con la etiqueta "video") con LLAVE_REPOS, si esa llave tiene permiso para leer
 los issues de dato-de-fulvio (repo FULVIO); si no, el resumen lo dice."""
@@ -131,7 +132,7 @@ def alerta_manana(gh, items, paginas, ahora, cuando, llave, gh_repos):
     enviar(gh, f"⚠️ Faltan videos de hoy ({ahora:%d/%m})", cuerpo)
 
 
-def resumen_noche(gh, items, paginas, ahora, cuando, llave, gh_repos):
+def resumen_noche(gh, items, paginas, ahora, cuando, llave, gh_repos, claves_malas):
     dia = ahora.date()
     marca = f"<!-- resumen:{dia.isoformat()} -->"
     if ya_enviado(gh, marca)[0]:
@@ -153,8 +154,8 @@ def resumen_noche(gh, items, paginas, ahora, cuando, llave, gh_repos):
         for momento, it in lista:
             icono, txt = estado_de(it, momento, pag, ahora)
             nombre_video = getattr(it, "titulo", None) or (it.texto.strip().splitlines() or [""])[0][:60]
-            if nombre_video.startswith(titulo):   # "Entrenando Mentes · 2026-10-27 09:00" no dice nada nuevo
-                nombre_video = ""
+            # "Buscadores · 2026-10-27 12:00 · N.º 39 …" → "N.º 39 …" (la página y la hora ya se ven)
+            nombre_video = re.sub(r"^.*?\d{4}-\d{2}-\d{2} \d{1,2}:\d{2}( · )?", "", nombre_video).strip()
             lineas.append(f"- {momento:%H:%M} · " + (f"{nombre_video} · " if nombre_video else "") + f"{icono} {txt}")
             if icono in ("❌", "⏳") and it.estado.get("error"):
                 lineas.append(f"  - Error: `{it.estado['error'][:200]}`")
@@ -171,6 +172,10 @@ def resumen_noche(gh, items, paginas, ahora, cuando, llave, gh_repos):
     if problema:
         problemas.append("El Dato de Fulvio")
 
+    if claves_malas:   # una llave vencida hace que mañana no salga nada en esa red: se avisa antes
+        partes.append("### 🔑 Llaves que no funcionan\n" + "\n".join(f"- ❌ {c}" for c in claves_malas)
+                      + "\n- Hay que rehacer esa llave (ver AGENTS.md → Arreglar errores); si no, esos videos no van a salir.")
+        problemas += ["llaves"]
     estado = "todo bien ✅" if not problemas else f"{len(set(problemas))} con problemas ⚠️"
     cuerpo = (f"**Hoy se crearon {creados} videos y salieron {salieron}.**\n\n" + "\n\n".join(partes)
               + "\n\n---\n✅ salió · 🕒 aún no le toca · ⏳ reintentando solo · ⛔ frenado · ❌ problema\n\n"
@@ -180,9 +185,10 @@ def resumen_noche(gh, items, paginas, ahora, cuando, llave, gh_repos):
     enviar(gh, f"📋 Resumen del {ahora:%d/%m}: {estado}", cuerpo, cerrar_anteriores=True)
 
 
-def revisar(gh, items, paginas, ahora, cuando, llave, gh_repos):
+def revisar(gh, items, paginas, ahora, cuando, llave, gh_repos, probar_claves):
     hora = ahora.time()
     if PRUEBA or HORA_ALERTA <= hora < HORA_RESUMEN:
         alerta_manana(gh, items, paginas, ahora, cuando, llave, gh_repos)
     if PRUEBA or hora >= HORA_RESUMEN:
-        resumen_noche(gh, items, paginas, ahora, cuando, llave, gh_repos)
+        if PRUEBA or not ya_enviado(gh, f"<!-- resumen:{ahora.date().isoformat()} -->")[0]:
+            resumen_noche(gh, items, paginas, ahora, cuando, llave, gh_repos, probar_claves())

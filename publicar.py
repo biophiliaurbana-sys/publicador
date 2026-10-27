@@ -236,25 +236,33 @@ def revisar(item, ahora):
 
 
 def probar_claves():
+    """Revisa la llave de Meta y de YouTube de cada página. Devuelve las que no funcionan (para el resumen del día)."""
+    malas = []
     for nombre in sorted(f[:-5] for f in os.listdir(os.path.join(AQUI, "paginas")) if f.endswith(".json")):
         pag = pagina(nombre)
         if {"facebook", "instagram"} & set(pag["redes"]):
             token = SECRETOS.get(pag.get("meta", ""))
             if not token:
                 print(f"{nombre}: falta el secreto {pag.get('meta')}")
-                continue
-            try:
-                yo = meta.cuenta(token)
-                ig = (yo.get("instagram_business_account") or {}).get("username", "sin Instagram")
-                print(f"{nombre}: clave de Meta OK · Facebook '{yo['name']}' · Instagram @{ig}")
-            except Exception as ex:
-                print(f"{nombre}: la clave de Meta NO funciona ({ex})")
+                malas.append(f"{pag['nombre']} · Facebook/Instagram: falta el secreto {pag.get('meta')}")
+            else:
+                try:
+                    yo = meta.cuenta(token)
+                    ig = (yo.get("instagram_business_account") or {}).get("username", "sin Instagram")
+                    print(f"{nombre}: clave de Meta OK · Facebook '{yo['name']}' · Instagram @{ig}")
+                except Exception as ex:
+                    print(f"{nombre}: la clave de Meta NO funciona ({ex})")
+                    vencida = "expired" in str(ex) or "Session has" in str(ex)
+                    malas.append(f"{pag['nombre']} · Facebook/Instagram: la llave {pag['meta']} "
+                                 + ("venció" if vencida else f"no funciona (`{' '.join(str(ex).split())[:150]}`)"))
         if "youtube" in pag["redes"]:
             try:
                 acceso_google(pag["youtube"])
                 print(f"{nombre}: YouTube OK")
             except Exception as ex:
                 print(f"{nombre}: YouTube NO funciona ({ex})")
+                malas.append(f"{pag['nombre']} · YouTube: la llave {pag['youtube']} no funciona (`{' '.join(str(ex).split())[:150]}`)")
+    return malas
 
 
 def repos_de_marca():
@@ -372,7 +380,7 @@ def main():
     try:   # avisos del día en la app de GitHub: faltan videos (9:30) y resumen (22:30); ver resumen.py
         resumen.PRUEBA = PRUEBA
         paginas = {f[:-5]: pagina(f[:-5]) for f in sorted(os.listdir(os.path.join(AQUI, "paginas"))) if f.endswith(".json")}
-        resumen.revisar(gh, items, paginas, ahora, cuando, llave, gh_repos)
+        resumen.revisar(gh, items, paginas, ahora, cuando, llave, gh_repos, probar_claves)
     except Exception as ex:
         print(f"(no pude armar el resumen del día: {' '.join(str(ex).split())[:200]})")
 
