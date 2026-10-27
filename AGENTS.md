@@ -10,7 +10,21 @@ Este repo publica videos en Facebook, Instagram y YouTube a su hora. Lee README.
 - "Frena tal video" → `python frenar.py <link de Drive>` (marca ⛔ en la columna G; no borra nada).
 - Páginas que se arman solas (repos de `repos.json`): su cola son los *releases* de su repo privado; frenar = poner ⛔ al inicio del título del release.
   En la marca oculta, `"redes": ["youtube"]` publica solo en esas redes (p. ej. videos viejos que ya salieron en Facebook).
+- Avisos del día (issues con la etiqueta `resumen`, ver `resumen.py`): a las 9:30 si faltan videos de hoy (cuántos se esperan:
+  `"por_dia"` en `paginas/*.json`) y a las 22:30 el resumen (qué se creó, qué salió, errores), incluido El Dato de Fulvio
+  si `LLAVE_REPOS` puede leer los issues de `dato-de-fulvio`.
 - "¿Por qué no salió?" → columna G de su fila, los avisos (issues) y la última corrida de *Actions → Publicar*.
+
+Qué páginas maneja (archivos de `paginas/`): `entrenando-mentes`, `buscadores-de-la-verdad`, `biophilia-urbana`
+(FB + IG + YouTube) y `biophilia-urbana-en` (solo YouTube en inglés). El Dato de Fulvio NO pasa por aquí: publica desde su propio repo.
+
+Cómo se despierta: el cron de GitHub no es confiable, así que cada 15 min una tarea de cron-job.org (cuenta de Danko,
+tarea "Publicador") lanza *Publicar* con un token de GitHub que solo puede correr Actions. Si nada sale en horas,
+revisar primero esa tarea en cron-job.org.
+
+Secretos (Settings → Secrets and variables → Actions; solo nombres, nunca valores): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
+`GOOGLE_REFRESH` (Drive y planilla), `YT_CLIENT_ID`, `YT_CLIENT_SECRET` (app de YouTube), uno `META_...` y uno `YT_...` por página
+(los nombres exactos están en `paginas/*.json`), `LLAVE_REPOS` (lee los releases de los repos de `repos.json`). Variable: `HOJA_COLA`.
 
 Reglas:
 - Nunca publiques al instante: todo va a la cola con fecha y hora. Nunca escribas claves en archivos que se suban

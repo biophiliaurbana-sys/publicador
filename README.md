@@ -11,7 +11,9 @@ quedan **privados en tu Google Drive**, la cola es una **planilla tuya** y las c
 3. Cada red se marca apenas sale. Si una falla, las demás salen igual, y la que falló se reintenta cada hora con
    una versión más liviana. Si a la tercera vuelta sigue fallando, te llega un aviso (issue); a las 24 horas se deja.
 4. Cuando un video ya salió en todas sus redes, se manda a la **papelera** de Drive (Google lo borra a los 30 días).
-5. En la columna **estado** ves qué pasó con cada video: 🕒 en cola, ⏳ reintentando, ✅ publicado, ⚠️ problema.
+5. **Avisos del día** en la app de GitHub (etiqueta `resumen`): a las 9:30 si a alguna página le faltan videos de hoy,
+   y a las 22:30 un resumen de todas las páginas: qué se creó, qué salió en cada red y qué falló (ver `resumen.py`).
+6. En la columna **estado** ves qué pasó con cada video: 🕒 en cola, ⏳ reintentando, ✅ publicado, ⚠️ problema.
 
 ## Páginas que arman su contenido solas (sin Drive)
 

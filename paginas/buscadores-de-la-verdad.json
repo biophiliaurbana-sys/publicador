@@ -2,5 +2,6 @@
   "nombre": "Buscadores de la Verdad",
   "redes": ["facebook", "youtube"],
   "meta": "META_BUSCADORES",
-  "youtube": "YT_BUSCADORES"
+  "youtube": "YT_BUSCADORES",
+  "por_dia": 3
 }
