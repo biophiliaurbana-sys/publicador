@@ -64,6 +64,11 @@ def bajar(token, archivo_id, destino):
     return destino
 
 
+def a_papelera(token, archivo_id):
+    """Manda un archivo de Drive a la papelera (Google lo borra solo a los 30 días; se puede recuperar antes)."""
+    pedir(_req(token, f"https://www.googleapis.com/drive/v3/files/{archivo_id}", "PATCH", datos={"trashed": True}))
+
+
 def subir(token, ruta, carpeta_id, nombre=None, tipo="video/mp4"):
     """Sube un archivo a una carpeta de tu Drive (queda privado) y devuelve su link."""
     meta = {"name": nombre or os.path.basename(ruta), "parents": [carpeta_id] if carpeta_id else []}

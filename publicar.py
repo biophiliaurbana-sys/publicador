@@ -147,6 +147,13 @@ def revisar(token, n, fila, ahora):
     if set(pag["redes"]) <= hechas:
         estado["listo"] = True
         guardar(f"✅ publicado en {', '.join(pag['redes'])} ({ahora:%d/%m %H:%M})")
+        # ya salió en todas sus redes: el video (y su portada) van a la papelera de Drive para no llenarlo (Danko 27-oct)
+        for link in (video, portada):
+            if link.strip():
+                try:
+                    google.a_papelera(token, google.id_drive(link))
+                except Exception as ex:
+                    print(f"  (no se pudo mandar a la papelera: {' '.join(str(ex).split())[:150]})")
     else:
         estado["intentos"] = estado.get("intentos", 0) + 1
         if estado["intentos"] == 3:
