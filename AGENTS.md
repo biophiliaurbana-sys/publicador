@@ -10,6 +10,9 @@ Este repo publica videos en Facebook, Instagram y YouTube a su hora. Lee README.
 - "Frena tal video" → `python frenar.py <link de Drive>` (marca ⛔ en la columna G; no borra nada).
 - Páginas que se arman solas (repos de `repos.json`): su cola son los *releases* de su repo privado; frenar = poner ⛔ al inicio del título del release.
   En la marca oculta, `"redes": ["youtube"]` publica solo en esas redes (p. ej. videos viejos que ya salieron en Facebook).
+- Avisos del día (issues con la etiqueta `resumen`, ver `resumen.py`): a las 9:30 si faltan videos de hoy (cuántos se esperan:
+  `"por_dia"` en `paginas/*.json`) y a las 22:30 el resumen (qué se creó, qué salió, errores), incluido El Dato de Fulvio
+  si `LLAVE_REPOS` puede leer los issues de `dato-de-fulvio`.
 - "¿Por qué no salió?" → columna G de su fila, los avisos (issues) y la última corrida de *Actions → Publicar*.
 
 Qué páginas maneja (archivos de `paginas/`): `entrenando-mentes`, `buscadores-de-la-verdad`, `biophilia-urbana`
