@@ -50,7 +50,7 @@ del armado: `python encolar.py --pagina ... --video ... --hora ... --texto-archi
 ## Conectar (una sola vez)
 
 1. **Google** (Drive, planilla y YouTube): un cliente OAuth en Google Cloud. Con él se corre en el PC
-   `python autorizar_google.py <CLIENT_ID> <CLIENT_SECRET>`, que entrega el *refresh token*.
+   `python autorizar_google.py` (al lado del JSON del cliente), que entrega el *refresh token*.
    En el repo: secretos `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH` y variable `HOJA_COLA`.
 2. **Cada página**: un archivo `paginas/<nombre>.json`:
    ```json
@@ -58,7 +58,7 @@ del armado: `python encolar.py --pagina ... --video ... --hora ... --texto-archi
      "meta": "META_MI_TIENDA", "youtube": "YT_MI_TIENDA" }
    ```
    y los secretos con esos nombres: `META_...` = token de la página de Facebook (sirve también para su Instagram);
-   `YT_...` = refresh token del canal (`python autorizar_google.py <ID> <SECRET> --youtube`, eligiendo el canal).
+   `YT_...` = refresh token del canal (`python autorizar_google.py --youtube`, eligiendo el canal).
 3. **Probar**: *Actions → Publicar → Run workflow* con "Solo probar" marcado. Muestra la cola y si cada clave funciona.
 
 > **Google Cloud:** deja la app OAuth en modo **"En producción"** (aunque no esté verificada); en modo "Prueba" el
