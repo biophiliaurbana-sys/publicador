@@ -32,7 +32,12 @@ codigo = {}
 class Recibir(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+        if "code" not in q and "error" not in q:   # el navegador a veces pide otras cosas (favicon, etc.)
+            self.send_response(204)
+            self.end_headers()
+            return
         codigo["valor"] = (q.get("code") or [None])[0]
+        codigo["error"] = (q.get("error") or [None])[0]
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.end_headers()
@@ -47,9 +52,13 @@ url = "https://accounts.google.com/o/oauth2/v2/auth?" + urllib.parse.urlencode({
     "access_type": "offline", "prompt": "consent"})
 print("Abriendo el navegador… si no se abre, copia este link:\n", url)
 webbrowser.open(url)
-http.server.HTTPServer(("localhost", PUERTO), Recibir).handle_request()
+servidor = http.server.HTTPServer(("localhost", PUERTO), Recibir)
+servidor.timeout = 600   # 10 minutos para aceptar en el navegador
+servidor.handle_timeout = lambda: codigo.setdefault("valor", None)
+while "valor" not in codigo:   # el navegador puede pedir otras cosas antes de volver con el permiso
+    servidor.handle_request()
 if not codigo.get("valor"):
-    sys.exit("Google no devolvió el permiso. Vuelve a intentarlo.")
+    sys.exit(f"Google no devolvió el permiso ({codigo.get('error') or 'se acabó el tiempo'}). Vuelve a intentarlo.")
 datos = urllib.parse.urlencode({"code": codigo["valor"], "client_id": CLIENTE, "client_secret": SECRETO,
                                 "redirect_uri": REDIRECT, "grant_type": "authorization_code"}).encode()
 r = json.load(urllib.request.urlopen(urllib.request.Request("https://oauth2.googleapis.com/token", data=datos)))
