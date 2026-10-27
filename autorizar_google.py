@@ -3,19 +3,22 @@
   python autorizar_google.py --youtube  → YouTube (una vez por canal)
 Busca solo el archivo client_secret_....json que bajaste de Google Cloud (déjalo en la misma carpeta).
 También se puede: python autorizar_google.py <CLIENT_ID> <CLIENT_SECRET> [--youtube]
+Con otra app (por ejemplo una ya aprobada por YouTube): --cliente <primeros números de su ID de cliente>, y busca
+su client_secret_<esos números>....json en esta carpeta, Descargas o Escritorio.
 Se abre el navegador, eliges la cuenta (o el canal) y aceptas. Al final se muestra el refresh token:
 cópialo como secreto en GitHub (GOOGLE_REFRESH, o YT_<PÁGINA> para un canal). No lo compartas con nadie."""
 import glob, http.server, json, os, sys, urllib.parse, urllib.request, webbrowser
 
-args = [a for a in sys.argv[1:] if not a.startswith("--")]
+CUAL = sys.argv[sys.argv.index("--cliente") + 1] if "--cliente" in sys.argv else ""
+args = [a for a in sys.argv[1:] if not a.startswith("--") and a != CUAL]
 if len(args) >= 2:
     CLIENTE, SECRETO = args[0], args[1]
 else:
     carpetas = [os.getcwd(), os.path.dirname(os.path.abspath(__file__)), os.path.expanduser("~/Downloads"),
-                os.path.expanduser("~/Descargas")]
+                os.path.expanduser("~/Descargas"), os.path.expanduser("~/Desktop"), os.path.expanduser("~/Escritorio")]
     # el de esta carpeta gana; si no hay, el más nuevo de Descargas
-    archivos = next((sorted(glob.glob(os.path.join(c, "client_secret*.json")), key=os.path.getmtime)
-                     for c in carpetas if glob.glob(os.path.join(c, "client_secret*.json"))), [])
+    archivos = next((sorted(glob.glob(os.path.join(c, f"client_secret_{CUAL}*.json")), key=os.path.getmtime)
+                     for c in carpetas if glob.glob(os.path.join(c, f"client_secret_{CUAL}*.json"))), [])
     if not archivos:
         sys.exit("No encuentro el archivo client_secret_....json. Déjalo en la misma carpeta que este script.\n" + __doc__)
     datos_cliente = json.load(open(archivos[-1], encoding="utf-8"))
