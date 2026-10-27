@@ -22,7 +22,7 @@ quedan **privados en tu Google Drive**, la cola es una **planilla tuya** y las c
 - **página**: el nombre de un archivo de `paginas/` (sin `.json`).
 - **fecha y hora**: de Chile. La fecha puede ir como `2026-10-28` o `28/10/2026`.
 - **texto**: lo que va en la publicación. La primera línea también es el título en YouTube.
-- **G y H no se tocan**: ahí el sistema anota lo que ya salió.
+- **G y H no se tocan**: ahí el sistema anota lo que ya salió. Para **frenar** un video que aún no sale, escribe `⛔` en su columna G.
 
 ## Dejar un video en la cola
 

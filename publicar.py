@@ -92,6 +92,9 @@ def revisar(token, n, fila, ahora):
     estado = json.loads(detalle) if detalle.strip().startswith("{") else {}
     if estado.get("listo") or estado.get("vencido"):
         return
+    if resumen_actual.strip().startswith("⛔"):   # frenado (a mano o con "frenar" en el aviso): no se publica
+        print(f"· fila {n}: frenado, no se publica")
+        return
 
     def guardar(resumen):
         nuevo = json.dumps(estado, ensure_ascii=False)
