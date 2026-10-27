@@ -67,9 +67,12 @@ def cuando(fecha, hora):
 
 
 def acceso_google(secreto="GOOGLE_REFRESH"):
-    if not (SECRETOS.get("GOOGLE_CLIENT_ID") and SECRETOS.get(secreto)):
-        raise RuntimeError(f"Falta conectar Google (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y {secreto}).")
-    return google.acceso(SECRETOS["GOOGLE_CLIENT_ID"], SECRETOS["GOOGLE_CLIENT_SECRET"], SECRETOS[secreto])
+    # YouTube puede usar otro proyecto de Google (uno ya aprobado por YouTube, así los videos salen públicos):
+    # YT_CLIENT_ID / YT_CLIENT_SECRET. Si no están, usa el mismo cliente que Drive y la planilla.
+    cliente = "YT_CLIENT" if secreto.startswith("YT_") and SECRETOS.get("YT_CLIENT_ID") else "GOOGLE_CLIENT"
+    if not (SECRETOS.get(f"{cliente}_ID") and SECRETOS.get(secreto)):
+        raise RuntimeError(f"Falta conectar Google ({cliente}_ID, {cliente}_SECRET y {secreto}).")
+    return google.acceso(SECRETOS[f"{cliente}_ID"], SECRETOS[f"{cliente}_SECRET"], SECRETOS[secreto])
 
 
 def publicar_en(red, pag, video, texto, portada, ligero):

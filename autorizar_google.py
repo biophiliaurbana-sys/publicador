@@ -69,6 +69,9 @@ if not r.get("refresh_token"):
 print("\nGuarda estos secretos en GitHub (no los compartas con nadie). Van juntos: si cambias uno, cambia los tres.\n")
 if "--youtube" in sys.argv:
     print("YT_<PÁGINA> =", r["refresh_token"])
+    print("\n(Si este cliente es de OTRO proyecto que el de Drive, guarda también, una sola vez:)")
+    print("YT_CLIENT_ID =", CLIENTE)
+    print("\nYT_CLIENT_SECRET =", SECRETO)
 else:
     print("GOOGLE_CLIENT_ID =", CLIENTE)
     print("\nGOOGLE_CLIENT_SECRET =", SECRETO)
