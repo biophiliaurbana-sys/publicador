@@ -24,3 +24,9 @@ Arreglar errores:
 - `invalid_grant` en YouTube = la llave venció (app en modo prueba, cada 7 días): en el PC, `python autorizar_google.py --youtube --cliente 758422210366`
   y Danko pega el resultado en el secreto `YT_<PÁGINA>`. Token de Meta inválido: rehacerlo en el Explorador de la API Graph.
 - Un cambio de Claude/IA a `.github/workflows/` en este repo público queda "action_required" hasta que Danko lo apruebe en la web.
+
+## Cambiar la portada de un video (repos de marca)
+En el repo de la marca, sube la imagen (jpg 1080x1920, menos de 2 MB) y agrega a `portadas.json`
+`{"release": "<etiqueta del release>", "imagen": "portadas/<archivo>.jpg"}`. En la siguiente vuelta el publicador:
+si el video ya salió, cambia la portada en Facebook y YouTube (Instagram no se puede por API); si aún no sale,
+reemplaza la portada del release. Marca la entrada con `"hecho": true` y el resultado.
