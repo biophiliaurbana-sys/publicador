@@ -30,7 +30,7 @@ def pedir(llave, metodo, url, datos=None, cabeceras=None, crudo=False):
         raise ErrorGitHub(f"GitHub respondió error {e.code}: {e.read()[:300].decode(errors='replace')}")
 
 
-def releases(llave, repo, cuantos=30):
+def releases(llave, repo, cuantos=100):   # los más nuevos primero; los ya ✅ se saltan rápido
     return pedir(llave, "GET", f"/repos/{repo}/releases?per_page={cuantos}")
 
 

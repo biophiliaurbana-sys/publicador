@@ -130,6 +130,7 @@ class Lanzamiento:
         m = self.marca or {}
         self.nombre, self.fecha, self.hora = m.get("pagina", ""), m.get("fecha", ""), m.get("hora", "")
         self.estado = m.get("estado") or {}
+        self.redes = m.get("redes")   # opcional: solo algunas redes de la página (p. ej. ["youtube"] para videos que ya salieron en Facebook)
         self.resumen = rel.get("name") or ""
         self.titulo = m.get("titulo") or f"{self.nombre} · {self.fecha} {self.hora}"
         self.etiqueta = f"{repo.split('/')[-1]} {rel.get('tag_name')}"
@@ -175,6 +176,8 @@ def revisar(item, ahora):
     guardar = (lambda resumen: None) if PRUEBA else item.guardar
 
     pag = pagina(item.nombre)
+    if pag and getattr(item, "redes", None):
+        pag = {**pag, "redes": [x for x in pag["redes"] if x in item.redes]}
     try:
         momento = cuando(item.fecha, item.hora)
     except ValueError as e:
