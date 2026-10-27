@@ -28,3 +28,10 @@ def subir(acceso, video, titulo, descripcion, privacidad="public"):
     _, cuerpo = _pedir(urllib.request.Request(cab["Location"], data=open(video, "rb").read(), method="PUT",
                                               headers={"Authorization": f"Bearer {acceso}", "Content-Type": "video/mp4"}))
     return json.loads(cuerpo)["id"]
+
+
+def poner_portada(acceso, video_id, imagen):
+    """Miniatura de un video ya subido (máx. 2 MB; el canal debe estar verificado con teléfono)."""
+    _pedir(urllib.request.Request(f"https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId={video_id}",
+                                  data=open(imagen, "rb").read(), method="POST",
+                                  headers={"Authorization": f"Bearer {acceso}", "Content-Type": "image/jpeg"}))

@@ -211,6 +211,7 @@ def revisar(item, ahora):
         try:
             ident = publicar_en(red, pag, archivo, item.texto, portada_archivo, ligero=estado.get("intentos", 0) > 0)
             hechas.add(red)
+            estado.setdefault("ids", {})[red] = str(ident)   # sirve para cambiarle la portada después (portadas.json)
             print(f"  ✅ {red}: publicado ({ident})")
         except Exception as ex:
             estado["error"] = f"{red}: {' '.join(str(ex).split())[:300]}"
@@ -283,6 +284,56 @@ def prueba_youtube():
             print(f"{nombre}: ❌ YouTube no lo aceptó ({' '.join(str(ex).split())[:300]})")
 
 
+def cambiar_portadas(llave, repo, items):
+    """portadas.json en el repo de marca: lista de {"release": etiqueta, "imagen": ruta en el repo}.
+    Si el video ya salió, cambia la portada en Facebook y YouTube (Instagram no deja cambiarla por API).
+    Si aún no sale, reemplaza la portada adjunta al release. Opcional: "facebook"/"youtube" con el id del video
+    (si el release no los tiene anotados). Cada entrada hecha queda con "hecho" y el resultado."""
+    datos, sha = gh_repos.leer_archivo(llave, repo, "portadas.json")
+    if not datos:
+        return
+    lista = json.loads(datos)
+    cambio = False
+    for e in lista:
+        if e.get("hecho"):
+            continue
+        item = next((i for i in items if isinstance(i, Lanzamiento) and i.repo == repo
+                     and i.etiqueta.split(" ", 1)[1] == e["release"]), None)
+        if not item:
+            e["hecho"], e["resultado"] = True, "no encontré ese release"
+            cambio = True
+            continue
+        imagen = os.path.join(AQUI, "bajados", re.sub(r"[^\w.-]", "_", e["release"]) + "-portada-nueva.jpg")
+        os.makedirs(os.path.dirname(imagen), exist_ok=True)
+        open(imagen, "wb").write(gh_repos.leer_archivo(llave, repo, e["imagen"])[0])
+        pag, ids, res = pagina(item.nombre), item.estado.get("ids", {}), []
+        if not item.estado.get("hechas"):   # aún no sale: se cambia la portada adjunta
+            for a in item.archivos:
+                if a["name"].lower().endswith((".jpg", ".jpeg", ".png")):
+                    gh_repos.borrar_archivo(llave, repo, a["id"])
+            gh_repos.subir_archivo(llave, repo, item.id, "portada.jpg", imagen, "image/jpeg")
+            res.append("portada del release cambiada")
+        for red in [r for r in ("facebook", "youtube") if r in item.estado.get("hechas", [])]:
+            vid = e.get(red) or ids.get(red)
+            try:
+                if not vid:
+                    raise RuntimeError("no sé el id del video")
+                if red == "facebook":
+                    meta.poner_portada(SECRETOS[pag["meta"]], vid, imagen)
+                else:
+                    youtube.poner_portada(acceso_google(pag["youtube"]), vid, imagen)
+                res.append(f"{red} OK")
+            except Exception as ex:
+                res.append(f"{red} falló: {' '.join(str(ex).split())[:150]}")
+        e["hecho"], e["resultado"] = True, "; ".join(res)
+        print(f"· portada {e['release']}: {e['resultado']}")
+        cambio = True
+    if cambio and not PRUEBA:
+        gh_repos.escribir_archivo(llave, repo, "portadas.json",
+                                  (json.dumps(lista, ensure_ascii=False, indent=2) + "\n").encode(), sha,
+                                  "Portadas cambiadas (publicador)")
+
+
 def main():
     if "--prueba-youtube" in sys.argv:
         return prueba_youtube()
@@ -307,6 +358,11 @@ def main():
                 print(f"{repo}: llave de GitHub OK")
         except Exception as ex:
             print(f"{repo}: no pude leer sus videos ({ex})")
+    for repo in repos_de_marca() if llave else []:
+        try:
+            cambiar_portadas(llave, repo, items)
+        except Exception as ex:
+            print(f"{repo}: no pude cambiar portadas ({' '.join(str(ex).split())[:200]})")
     for item in items:
         try:
             revisar(item, ahora)
