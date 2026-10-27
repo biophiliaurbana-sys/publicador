@@ -12,6 +12,17 @@ Este repo publica videos en Facebook, Instagram y YouTube a su hora. Lee README.
   En la marca oculta, `"redes": ["youtube"]` publica solo en esas redes (p. ej. videos viejos que ya salieron en Facebook).
 - "¿Por qué no salió?" → columna G de su fila, los avisos (issues) y la última corrida de *Actions → Publicar*.
 
+Qué páginas maneja (archivos de `paginas/`): `entrenando-mentes`, `buscadores-de-la-verdad`, `biophilia-urbana`
+(FB + IG + YouTube) y `biophilia-urbana-en` (solo YouTube en inglés). El Dato de Fulvio NO pasa por aquí: publica desde su propio repo.
+
+Cómo se despierta: el cron de GitHub no es confiable, así que cada 15 min una tarea de cron-job.org (cuenta de Danko,
+tarea "Publicador") lanza *Publicar* con un token de GitHub que solo puede correr Actions. Si nada sale en horas,
+revisar primero esa tarea en cron-job.org.
+
+Secretos (Settings → Secrets and variables → Actions; solo nombres, nunca valores): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
+`GOOGLE_REFRESH` (Drive y planilla), `YT_CLIENT_ID`, `YT_CLIENT_SECRET` (app de YouTube), uno `META_...` y uno `YT_...` por página
+(los nombres exactos están en `paginas/*.json`), `LLAVE_REPOS` (lee los releases de los repos de `repos.json`). Variable: `HOJA_COLA`.
+
 Reglas:
 - Nunca publiques al instante: todo va a la cola con fecha y hora. Nunca escribas claves en archivos que se suban
   a GitHub ni en mensajes; viven en `.env` (ignorado por git) y en los *secrets* del repo.
