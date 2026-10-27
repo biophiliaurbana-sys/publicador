@@ -1,7 +1,7 @@
 """YouTube (Shorts si el video es vertical y dura menos de 3 minutos) con la API oficial.
-Necesita un cliente OAuth de Google (YT_CLIENT_ID, YT_CLIENT_SECRET) y el refresh token de cada canal.
+Usa el mismo cliente OAuth de Google que Drive y Sheets (ver redes/google.py) y el refresh token de cada canal.
 Ojo: mientras el proyecto de Google no pase la revisión de YouTube, los videos subidos por API quedan privados."""
-import json, os, urllib.error, urllib.parse, urllib.request
+import json, os, urllib.error, urllib.request
 
 
 class ErrorYouTube(Exception):
@@ -14,13 +14,6 @@ def _pedir(req):
             return r.headers, r.read()
     except urllib.error.HTTPError as e:
         raise ErrorYouTube(f"YouTube respondió error {e.code}: {e.read()[:400].decode(errors='replace')}")
-
-
-def token_de_acceso(cliente_id, cliente_secreto, refresh):
-    datos = urllib.parse.urlencode({"client_id": cliente_id, "client_secret": cliente_secreto,
-                                    "refresh_token": refresh, "grant_type": "refresh_token"}).encode()
-    _, cuerpo = _pedir(urllib.request.Request("https://oauth2.googleapis.com/token", data=datos, method="POST"))
-    return json.loads(cuerpo)["access_token"]
 
 
 def subir(acceso, video, titulo, descripcion, privacidad="public"):

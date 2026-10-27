@@ -1,4 +1,4 @@
-# Cada hora revisa la cola (releases "pre-release") y sube a su hora lo que toca. Ver README.md.
+# Cada hora revisa la cola (planilla de Google, variable HOJA_COLA) y sube a su hora lo que toca. Ver README.md.
 # A mano: botón "Run workflow" (con "solo probar" no publica: muestra la cola y revisa las claves).
 name: Publicar
 
@@ -13,7 +13,7 @@ on:
         default: true
 
 permissions:
-  contents: write   # marcar en la cola lo que ya salió
+  contents: read
   issues: write     # avisos cuando algo no sale
 
 concurrency:
@@ -33,4 +33,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           SECRETOS: ${{ toJSON(secrets) }}   # cada página dice en paginas/*.json qué secreto usa
+          HOJA_COLA: ${{ vars.HOJA_COLA }}
         run: python publicar.py ${{ inputs.solo_probar && '--prueba' || '' }}
