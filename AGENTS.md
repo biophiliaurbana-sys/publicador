@@ -1,4 +1,4 @@
-# Instrucciones para el agente (DeepSeek Harness, Antigravity, Claude Code u otro)
+# Instrucciones para cualquier IA (Codex, Gemini, DeepSeek, Antigravity, Claude Code, una IA local…)
 
 Este repo publica videos en Facebook, Instagram y YouTube a su hora. Lee README.md.
 
@@ -14,5 +14,12 @@ Este repo publica videos en Facebook, Instagram y YouTube a su hora. Lee README.
 Reglas:
 - Nunca publiques al instante: todo va a la cola con fecha y hora. Nunca escribas claves en archivos que se suban
   a GitHub ni en mensajes; viven en `.env` (ignorado por git) y en los *secrets* del repo.
-- No borres nada definitivamente (ni videos de Drive): pregunta antes.
+- Los videos ya publicados (✅) se borran solos (Drive → papelera; releases → se quita el .mp4). Nada más se borra sin preguntar.
 - Pide confirmación antes de encolar si la página, la hora o el texto no están claros.
+
+Arreglar errores:
+- Mira la última corrida de *Actions → Publicar* (paso que falló) y el aviso (issue) que abrió. Prueba sin publicar con
+  *Run workflow* → "solo_probar" (revisa llaves y cola) o "prueba_youtube" (sube un video privado de 3 s a cada canal).
+- `invalid_grant` en YouTube = la llave venció (app en modo prueba, cada 7 días): en el PC, `python autorizar_google.py --youtube --cliente 758422210366`
+  y Danko pega el resultado en el secreto `YT_<PÁGINA>`. Token de Meta inválido: rehacerlo en el Explorador de la API Graph.
+- Un cambio de Claude/IA a `.github/workflows/` en este repo público queda "action_required" hasta que Danko lo apruebe en la web.
