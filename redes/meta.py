@@ -74,6 +74,24 @@ def poner_portada(token, video_id, archivo):
     print(f"aviso: Facebook no aceptó la portada ({error})")
 
 
+def enlace_oculto(token, video):
+    """Sube el video a la página de Facebook SIN publicarlo (nadie lo ve) y devuelve su enlace directo al mp4."""
+    yo = cuenta(token)
+    limite = "----publicador" + str(int(time.time()))
+    cuerpo = (f"--{limite}\r\nContent-Disposition: form-data; name=\"published\"\r\n\r\nfalse\r\n"
+              f"--{limite}\r\nContent-Disposition: form-data; name=\"source\"; filename=\"video.mp4\"\r\n"
+              f"Content-Type: video/mp4\r\n\r\n").encode() + open(video, "rb").read() + f"\r\n--{limite}--\r\n".encode()
+    v = pedir("POST", f"https://graph-video.facebook.com/v26.0/{yo['id']}/videos?access_token={token}", cuerpo=cuerpo,
+              cabeceras={"Content-Type": f"multipart/form-data; boundary={limite}"})
+    for _ in range(30):   # Facebook tarda un poco en dejar listo el enlace
+        time.sleep(10)
+        fuente = pedir("GET", f"{API}/{v['id']}?fields=source&access_token={token}").get("source")
+        if fuente:
+            print("aviso: Instagram recibe el video por enlace (plan B)")
+            return fuente
+    raise ErrorMeta("Facebook no entregó el enlace del video oculto para Instagram.")
+
+
 def instagram(token, video, texto, ligero=False):
     ig = (cuenta(token).get("instagram_business_account") or {}).get("id")
     if not ig:
@@ -87,9 +105,13 @@ def instagram(token, video, texto, ligero=False):
             subir(c["uri"], token, video)
             break
         except ErrorMeta as e:
+            print(f"aviso: Instagram rechazó la subida ({e})")
             if n == 2:
-                raise
-            print(f"aviso: Instagram rechazó la subida ({e}); reintento en 2 minutos")
+                # plan B: el video se sube oculto a la página de Facebook y se le pasa a Instagram ese enlace
+                c = pedir("POST", f"{API}/{ig}/media", {"media_type": "REELS", "video_url": enlace_oculto(token, video),
+                                                       "caption": texto, "share_to_feed": "true", "access_token": token})
+                break
+            print("reintento en 2 minutos")
             time.sleep(120)
     for _ in range(60):   # Instagram procesa el video (hasta ~10 min)
         s = pedir("GET", f"{API}/{c['id']}?fields=status_code,status&access_token={token}")
