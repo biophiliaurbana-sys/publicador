@@ -24,6 +24,12 @@ def cuenta(token):
     return pedir("GET", f"{API}/me?fields=id,name,instagram_business_account{{id,username}}&access_token={token}")
 
 
+def vence(token):
+    """Cuándo vence este token (fecha en segundos desde 1970), o 0 si no vence. Un token se puede revisar a sí mismo."""
+    datos = pedir("GET", f"{API}/debug_token?input_token={token}&access_token={token}").get("data", {})
+    return datos.get("expires_at") or 0
+
+
 def subir(url, token, video):
     cuerpo = open(video, "rb").read()
     return pedir("POST", url, cuerpo=cuerpo, cabeceras={"Authorization": f"OAuth {token}", "offset": "0",
