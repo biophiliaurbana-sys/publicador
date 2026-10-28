@@ -250,6 +250,18 @@ def probar_claves():
                     yo = meta.cuenta(token)
                     ig = (yo.get("instagram_business_account") or {}).get("username", "sin Instagram")
                     print(f"{nombre}: clave de Meta OK · Facebook '{yo['name']}' · Instagram @{ig}")
+                    try:   # una llave de Meta mal sacada dura 1 hora: se avisa antes de que venza
+                        fin = meta.vence(token)
+                        if fin:
+                            fin = datetime.datetime.fromtimestamp(fin, CHILE)
+                            print(f"{nombre}: OJO, la clave de Meta vence el {fin:%d/%m %H:%M}")
+                            if fin - datetime.datetime.now(CHILE) < datetime.timedelta(days=7):
+                                malas.append(f"{pag['nombre']} · Facebook/Instagram: la llave {pag['meta']} vence el {fin:%d/%m a las %H:%M} "
+                                             "(hay que sacar una que no venza: extenderla antes de pedir me/accounts)")
+                        else:
+                            print(f"{nombre}: la clave de Meta no vence")
+                    except Exception as ex:
+                        print(f"{nombre}: no pude ver cuándo vence la clave de Meta ({' '.join(str(ex).split())[:150]})")
                 except Exception as ex:
                     print(f"{nombre}: la clave de Meta NO funciona ({ex})")
                     vencida = "expired" in str(ex) or "Session has" in str(ex)
