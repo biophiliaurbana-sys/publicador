@@ -1,7 +1,18 @@
 {
   "nombre": "Entrenando Mentes",
-  "redes": ["facebook", "youtube"],
+  "redes": [
+    "facebook",
+    "youtube"
+  ],
   "meta": "META_ENTRENANDO_MENTES",
   "youtube": "YT_ENTRENANDO_MENTES",
-  "por_dia": 3
+  "por_dia": 3,
+  "armar": {
+    "repo": "biophiliaurbana-sys/entrenando-mentes",
+    "workflow": "diario.yml",
+    "inputs": {
+      "prueba": false
+    },
+    "desde": "07:00"
+  }
 }

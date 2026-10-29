@@ -5,14 +5,19 @@ Lo llama publicar.py al final de cada vuelta (cada 15 min); cada aviso sale una 
     y las llaves (Meta, YouTube) que ya no funcionan.
 Cuántos videos se esperan al día: "por_dia" en paginas/*.json. El Dato de Fulvio publica desde su propio repo:
 se lee su aviso del día (issue con la etiqueta "video") con LLAVE_REPOS, si esa llave tiene permiso para leer
-los issues de dato-de-fulvio (repo FULVIO); si no, el resumen lo dice."""
+los issues de dato-de-fulvio (repo FULVIO); si no, el resumen lo dice.
+Además, VIGILANTE (29-oct): si a una página le faltan videos de hoy, manda a armar de nuevo su repo ("armar" en
+paginas/*.json; Fulvio con FULVIO_ARMAR). Necesita que LLAVE_REPOS tenga permiso Actions: Read and write."""
 import datetime, re
 
 HORA_ALERTA = datetime.time(9, 30)
 HORA_RESUMEN = datetime.time(22, 30)
 FULVIO = "biophiliaurbana-sys/dato-de-fulvio"
 FULVIO_HORAS = {1: "9:00", 2: "13:00", 3: "20:00"}
+FULVIO_ARMAR = {"repo": FULVIO, "workflow": "ofertas.yml", "inputs": {"prueba": False}, "desde": "08:45"}
 ETIQUETA = "resumen"
+REARMAR_HASTA = datetime.time(21, 0)   # después ya no vale la pena: casi todos los videos del día pasaron su hora
+REARMAR_MAX = 4                        # corridas por día y repo (la normal + 3 intentos): para no gastar minutos de más
 PRUEBA = False   # publicar.py --prueba: muestra los dos avisos (a cualquier hora) sin mandarlos
 NOMBRE_RED = {"facebook": "Facebook", "instagram": "Instagram", "youtube": "YouTube"}
 
@@ -185,8 +190,47 @@ def resumen_noche(gh, items, paginas, ahora, cuando, llave, gh_repos, claves_mal
     enviar(gh, f"📋 Resumen del {ahora:%d/%m}: {estado}", cuerpo, cerrar_anteriores=True)
 
 
+def rearmar_uno(llave, gh_repos, ahora, nombre, armar):
+    """Manda a armar de nuevo el repo de una página (su workflow arma solo los videos que faltan)."""
+    h, m = map(int, armar.get("desde", "07:30").split(":"))
+    if not (datetime.time(h, m) <= ahora.time() < REARMAR_HASTA):
+        return
+    repo, wf = armar["repo"], armar["workflow"]
+    corridas = gh_repos.pedir(llave, "GET", f"/repos/{repo}/actions/workflows/{wf}/runs?per_page=10")["workflow_runs"]
+    fecha = lambda t: datetime.datetime.fromisoformat(t.replace("Z", "+00:00")).astimezone(ahora.tzinfo)
+    if any(c["status"] in ("queued", "in_progress", "waiting", "requested", "pending") for c in corridas):
+        return print(f"vigilante: {nombre} ya se está armando")
+    hoy = [c for c in corridas if fecha(c["created_at"]).date() == ahora.date()]
+    if len(hoy) >= REARMAR_MAX:
+        return print(f"vigilante: {nombre} sigue sin videos y ya probó {len(hoy)} veces hoy; no insisto (mira Actions de {repo})")
+    if corridas and ahora - fecha(corridas[0]["updated_at"]) < datetime.timedelta(minutes=20):
+        return print(f"vigilante: {nombre} terminó hace poco; espero 20 min antes de reintentar")
+    if PRUEBA:
+        return print(f"vigilante (prueba): mandaría a armar {repo} {wf}")
+    gh_repos.pedir(llave, "POST", f"/repos/{repo}/actions/workflows/{wf}/dispatches", {"ref": "main", "inputs": armar.get("inputs", {})})
+    print(f"vigilante: a {nombre} le faltan videos de hoy → lo mandé a armar de nuevo ({repo} {wf})")
+
+
+def rearmar(items, paginas, ahora, cuando, llave, gh_repos):
+    if not llave:
+        return
+    hoy = del_dia(items, ahora.date(), cuando)
+    for nombre, pag in paginas.items():
+        if pag.get("armar") and pag.get("por_dia") and len(hoy.get(nombre, [])) < pag["por_dia"]:
+            try:
+                rearmar_uno(llave, gh_repos, ahora, nombre, pag["armar"])
+            except Exception as ex:
+                print(f"vigilante: no pude revisar {nombre} ({' '.join(str(ex).split())[:200]})")
+    try:
+        if fulvio(llave, gh_repos, ahora)[1] == 0:
+            rearmar_uno(llave, gh_repos, ahora, "El Dato de Fulvio", FULVIO_ARMAR)
+    except Exception as ex:
+        print(f"vigilante: no pude revisar Fulvio ({' '.join(str(ex).split())[:200]})")
+
+
 def revisar(gh, items, paginas, ahora, cuando, llave, gh_repos, probar_claves):
     hora = ahora.time()
+    rearmar(items, paginas, ahora, cuando, llave, gh_repos)
     if PRUEBA or HORA_ALERTA <= hora < HORA_RESUMEN:
         alerta_manana(gh, items, paginas, ahora, cuando, llave, gh_repos)
     if PRUEBA or hora >= HORA_RESUMEN:

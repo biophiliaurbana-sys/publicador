@@ -1,7 +1,18 @@
 {
   "nombre": "Buscadores de la Verdad",
-  "redes": ["facebook", "youtube"],
+  "redes": [
+    "facebook",
+    "youtube"
+  ],
   "meta": "META_BUSCADORES",
   "youtube": "YT_BUSCADORES",
-  "por_dia": 3
+  "por_dia": 3,
+  "armar": {
+    "repo": "biophiliaurbana-sys/buscadores-de-la-verdad",
+    "workflow": "diario.yml",
+    "inputs": {
+      "prueba": false
+    },
+    "desde": "08:30"
+  }
 }
