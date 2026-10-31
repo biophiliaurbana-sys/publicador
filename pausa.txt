@@ -1,0 +1,5 @@
+# Días de PAUSA (fecha de Chile, uno por línea, AAAA-MM-DD): ese día no se arma ni se publica nada en ninguna página.
+# Lo leen: este publicador, dato-de-fulvio (Reels y post), entrenando-mentes y buscadores-de-la-verdad.
+# Para quitar una pausa, borra la línea. Los videos con fecha de un día en pausa no salen después (hay que darles otra fecha).
+2026-11-01
+2026-11-02

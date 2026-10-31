@@ -17,7 +17,7 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
 from redes import google, meta, youtube
 from redes import github as gh_repos
-import resumen
+import metricas, resumen
 
 CHILE = ZoneInfo("America/Santiago")
 VENCE_HORAS = 24
@@ -166,6 +166,18 @@ class Lanzamiento:
             gh_repos.borrar_archivo(self.llave, self.repo, a["id"])
 
 
+def dias_en_pausa():
+    """Fechas de pausa.txt (AAAA-MM-DD, hora de Chile): esos días no se publica nada."""
+    try:
+        with open(os.path.join(AQUI, "pausa.txt"), encoding="utf-8") as f:
+            return {l.split("#")[0].strip() for l in f if l.split("#")[0].strip()}
+    except FileNotFoundError:
+        return set()
+
+
+PAUSA = dias_en_pausa()
+
+
 def revisar(item, ahora):
     """Un video de la cola (Fila o Lanzamiento): lo publica si ya le tocó y anota cómo le fue."""
     if item.vacia or item.estado.get("listo") or item.estado.get("vencido"):
@@ -188,6 +200,10 @@ def revisar(item, ahora):
     if not pag:
         print(f"· {item.etiqueta}: no existe la página '{item.nombre}'")
         guardar(f"⚠️ no existe la página '{item.nombre}'")
+        return
+    if f"{momento:%Y-%m-%d}" in PAUSA:
+        print(f"· {item.etiqueta}: el {momento:%d/%m} es día de pausa (pausa.txt), no se publica")
+        guardar(f"⏸️ no sale: el {momento:%d/%m} es día de pausa (cámbiale la fecha si quieres que salga)")
         return
     hechas = set(estado.get("hechas", []))
     faltan = [r for r in pag["redes"] if r not in hechas]
@@ -360,6 +376,9 @@ def main():
         return prueba_youtube()
     ahora = datetime.datetime.now(CHILE)
     print(f"Hora de Chile: {ahora:%Y-%m-%d %H:%M}")
+    if f"{ahora:%Y-%m-%d}" in PAUSA and not PRUEBA:
+        print("Hoy es día de pausa (pausa.txt): no se publica nada ni se manda a armar videos.")
+        return
     if PRUEBA:
         probar_claves()
     items = []
@@ -389,6 +408,12 @@ def main():
             revisar(item, ahora)
         except Exception as ex:   # un video malo no frena a los demás
             print(f"· {item.etiqueta}: error inesperado: {ex}")
+    if PRUEBA:   # "solo probar" también muestra las reproducciones de cada página (metricas.py)
+        try:
+            paginas = {f[:-5]: pagina(f[:-5]) for f in sorted(os.listdir(os.path.join(AQUI, "paginas"))) if f.endswith(".json")}
+            metricas.mostrar(paginas, SECRETOS, acceso_google, items)
+        except Exception as ex:
+            print(f"(no pude leer las reproducciones: {' '.join(str(ex).split())[:200]})")
     try:   # avisos del día en la app de GitHub: faltan videos (9:30) y resumen (22:30); ver resumen.py
         resumen.PRUEBA = PRUEBA
         paginas = {f[:-5]: pagina(f[:-5]) for f in sorted(os.listdir(os.path.join(AQUI, "paginas"))) if f.endswith(".json")}
