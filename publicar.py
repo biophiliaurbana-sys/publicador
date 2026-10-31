@@ -17,7 +17,7 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
 from redes import google, meta, youtube
 from redes import github as gh_repos
-import resumen
+import metricas, resumen
 
 CHILE = ZoneInfo("America/Santiago")
 VENCE_HORAS = 24
@@ -408,6 +408,12 @@ def main():
             revisar(item, ahora)
         except Exception as ex:   # un video malo no frena a los demás
             print(f"· {item.etiqueta}: error inesperado: {ex}")
+    if PRUEBA:   # "solo probar" también muestra las reproducciones de cada página (metricas.py)
+        try:
+            paginas = {f[:-5]: pagina(f[:-5]) for f in sorted(os.listdir(os.path.join(AQUI, "paginas"))) if f.endswith(".json")}
+            metricas.mostrar(paginas, SECRETOS, acceso_google, items)
+        except Exception as ex:
+            print(f"(no pude leer las reproducciones: {' '.join(str(ex).split())[:200]})")
     try:   # avisos del día en la app de GitHub: faltan videos (9:30) y resumen (22:30); ver resumen.py
         resumen.PRUEBA = PRUEBA
         paginas = {f[:-5]: pagina(f[:-5]) for f in sorted(os.listdir(os.path.join(AQUI, "paginas"))) if f.endswith(".json")}
