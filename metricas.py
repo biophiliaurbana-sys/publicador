@@ -66,6 +66,19 @@ def youtube(nombre, acceso, ids):
                   f"https://youtu.be/{v['id']}")
 
 
+def subidos(acceso, cuantos=50):
+    """Los últimos videos del canal (necesita el permiso de solo lectura; si no lo tiene, lista vacía)."""
+    def get(ruta, **q):
+        return _get(urllib.request.Request(f"https://www.googleapis.com/youtube/v3/{ruta}?{urllib.parse.urlencode(q)}",
+                                           headers={"Authorization": f"Bearer {acceso}"}))
+    try:
+        lista = get("channels", part="contentDetails", mine="true")["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
+        return [i["contentDetails"]["videoId"] for i in
+                get("playlistItems", part="contentDetails", playlistId=lista, maxResults=cuantos).get("items", [])]
+    except Exception:
+        return []
+
+
 def mostrar(paginas, secretos, acceso_google, items):
     print("\n==== Reproducciones (columnas: página, red, fecha UTC, vistas, segundos promedio, me gusta, comentarios, texto, link)")
     for clave, pag in paginas.items():
@@ -79,8 +92,10 @@ def mostrar(paginas, secretos, acceso_google, items):
                 print(f"{pag['nombre']}: no pude leer Facebook/Instagram ({' '.join(str(ex).split())[:200]})")
         ids = [str(it.estado.get("ids", {}).get("youtube")) for it in items
                if (getattr(it, "nombre", "") or "").strip().lower() == clave and it.estado.get("ids", {}).get("youtube")]
-        if ids and "youtube" in pag["redes"]:
+        if "youtube" in pag["redes"]:
             try:
-                youtube(pag["nombre"], acceso_google(pag["youtube"]), ids)
+                acceso = acceso_google(pag["youtube"])
+                ids = list(dict.fromkeys(ids + subidos(acceso)))   # también los videos subidos a mano al canal
+                youtube(pag["nombre"], acceso, ids)
             except Exception as ex:
                 print(f"{pag['nombre']}: no pude leer YouTube ({' '.join(str(ex).split())[:200]})")
