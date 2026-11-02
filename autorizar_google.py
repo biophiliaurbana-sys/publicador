@@ -29,7 +29,9 @@ else:
     print("Usando", archivos[-1])
 PUERTO = 8765
 REDIRECT = f"http://localhost:{PUERTO}"
-ALCANCES = (["https://www.googleapis.com/auth/youtube.upload"] if "--youtube" in sys.argv else
+# YouTube: subir videos + LEER (solo lectura) las vistas y estadísticas del canal (2-nov: para saber qué videos funcionan)
+ALCANCES = (["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly",
+             "https://www.googleapis.com/auth/yt-analytics.readonly"] if "--youtube" in sys.argv else
             ["https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/spreadsheets"])
 codigo = {}
 
