@@ -285,8 +285,12 @@ def probar_claves():
                                  + ("venció" if vencida else f"no funciona (`{' '.join(str(ex).split())[:150]}`)"))
         if "youtube" in pag["redes"]:
             try:
-                acceso_google(pag["youtube"])
-                print(f"{nombre}: YouTube OK")
+                acceso = acceso_google(pag["youtube"])
+                try:   # con el permiso de solo lectura (2-nov) también se ve a qué canal va y sus números
+                    titulo, subs, vistas, videos = youtube.canal(acceso)
+                    print(f"{nombre}: YouTube OK · canal '{titulo}' · {subs} suscriptores · {vistas} vistas · {videos} videos")
+                except Exception:
+                    print(f"{nombre}: YouTube OK (esta llave no tiene permiso para ver estadísticas: sácala de nuevo con autorizar_google.py --youtube)")
             except Exception as ex:
                 print(f"{nombre}: YouTube NO funciona ({ex})")
                 malas.append(f"{pag['nombre']} · YouTube: la llave {pag['youtube']} no funciona (`{' '.join(str(ex).split())[:150]}`)")

@@ -35,3 +35,12 @@ def poner_portada(acceso, video_id, imagen):
     _pedir(urllib.request.Request(f"https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId={video_id}",
                                   data=open(imagen, "rb").read(), method="POST",
                                   headers={"Authorization": f"Bearer {acceso}", "Content-Type": "image/jpeg"}))
+
+
+def canal(acceso):
+    """Nombre y números del canal de esta llave (necesita el permiso de solo lectura, ver autorizar_google.py)."""
+    req = urllib.request.Request("https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true",
+                                 headers={"Authorization": f"Bearer {acceso}"})
+    item = (json.loads(_pedir(req)[1]).get("items") or [{}])[0]
+    e = item.get("statistics", {})
+    return item.get("snippet", {}).get("title", "?"), int(e.get("subscriberCount", 0)), int(e.get("viewCount", 0)), int(e.get("videoCount", 0))
