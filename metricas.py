@@ -54,15 +54,34 @@ def meta(nombre, token):
               (v.get("description") or "").split("\n")[0][:70], v.get("permalink_url"))
 
 
+def retencion(acceso):
+    """YouTube Analytics: {id: (segundos promedio, % del video visto)}. Si falta el permiso, vacío."""
+    import datetime
+    q = urllib.parse.urlencode({"ids": "channel==MINE", "startDate": "2020-01-01",
+                                "endDate": datetime.date.today().isoformat(), "dimensions": "video",
+                                "metrics": "views,averageViewDuration,averageViewPercentage",
+                                "sort": "-views", "maxResults": 200})
+    try:
+        d = _get(urllib.request.Request(f"https://youtubeanalytics.googleapis.com/v2/reports?{q}",
+                                        headers={"Authorization": f"Bearer {acceso}"}))
+        return {r[0]: (r[2], r[3]) for r in d.get("rows", [])}
+    except Exception as ex:
+        print(f"(sin retención de YouTube: {' '.join(str(ex).split())[:150]})")
+        return {}
+
+
 def youtube(nombre, acceso, ids):
+    ret = retencion(acceso)
     for i in range(0, len(ids), 50):
         q = urllib.parse.urlencode({"part": "snippet,statistics,status", "id": ",".join(ids[i:i + 50])})
         req = urllib.request.Request(f"https://www.googleapis.com/youtube/v3/videos?{q}",
                                      headers={"Authorization": f"Bearer {acceso}"})
         for v in _get(req).get("items", []):
             s = v.get("statistics", {})
-            _fila(nombre, "YT", v["snippet"]["publishedAt"][:16], s.get("viewCount"), None, s.get("likeCount"),
-                  s.get("commentCount"), f"[{v['status']['privacyStatus']}] {v['snippet']['title'][:60]}",
+            seg, pct = ret.get(v["id"], (None, None))   # Analytics tarda ~1-2 días en tener los datos
+            _fila(nombre, "YT", v["snippet"]["publishedAt"][:16], s.get("viewCount"), seg, s.get("likeCount"),
+                  s.get("commentCount"),
+                  f"[{v['status']['privacyStatus']}{f' · {pct:.0f}% visto' if pct is not None else ''}] {v['snippet']['title'][:60]}",
                   f"https://youtu.be/{v['id']}")
 
 
