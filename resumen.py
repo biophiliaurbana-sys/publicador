@@ -1,20 +1,18 @@
 """RESUMEN · avisos diarios (issues con la etiqueta "resumen") para ver en la app de GitHub qué se creó y qué salió.
 Lo llama publicar.py al final de cada vuelta (cada 15 min); cada aviso sale una sola vez al día:
-  · desde las 9:30 (Chile): si a alguna página le faltan videos de hoy (no se crearon), un aviso ⚠️ al tiro.
-  · desde las 22:30 (Chile): el resumen del día, página por página: qué se creó, qué salió y en qué redes, los errores
+  · desde las 9:30: si a alguna página le faltan videos de hoy (no se crearon), un aviso ⚠️ al tiro.
+  · desde las 22:30: el resumen del día, página por página: qué se creó, qué salió y en qué redes, los errores
     y las llaves (Meta, YouTube) que ya no funcionan.
-Cuántos videos se esperan al día: "por_dia" en paginas/*.json. El Dato de Fulvio publica desde su propio repo:
-se lee su aviso del día (issue con la etiqueta "video") con LLAVE_REPOS, si esa llave tiene permiso para leer
-los issues de dato-de-fulvio (repo FULVIO); si no, el resumen lo dice.
-Además, VIGILANTE (29-oct): si a una página le faltan videos de hoy, manda a armar de nuevo su repo ("armar" en
-paginas/*.json; Fulvio con FULVIO_ARMAR). Necesita que LLAVE_REPOS tenga permiso Actions: Read and write."""
+Cuántos videos se esperan al día: columna "por día" de la pestaña paginas (ver config.py).
+Las páginas de la pestaña "otros" publican desde su propio repo: se lee su aviso del día (issue con la etiqueta
+"video", con marcas dia:AAAA-MM-DD, títulos "### N · … · categoría" y etiquetas publicado-N / fallo-N / aprobado-N…)
+con LLAVE_REPOS, si esa llave puede leer los issues de ese repo; si no, el resumen lo dice.
+Además, VIGILANTE: si a una página le faltan videos de hoy, manda a armar de nuevo su repo (columnas "armar con" y
+"armar desde"). Necesita que LLAVE_REPOS tenga permiso Actions: Read and write en esos repos."""
 import datetime, re
 
 HORA_ALERTA = datetime.time(9, 30)
 HORA_RESUMEN = datetime.time(22, 30)
-FULVIO = "biophiliaurbana-sys/dato-de-fulvio"
-FULVIO_HORAS = {1: "9:00", 2: "13:00", 3: "20:00"}
-FULVIO_ARMAR = {"repo": FULVIO, "workflow": "ofertas.yml", "inputs": {"prueba": False}, "desde": "08:45"}
 ETIQUETA = "resumen"
 REARMAR_HASTA = datetime.time(21, 0)   # después ya no vale la pena: casi todos los videos del día pasaron su hora
 REARMAR_MAX = 4                        # corridas por día y repo (la normal + 3 intentos): para no gastar minutos de más
@@ -81,16 +79,17 @@ def estado_de(it, momento, pag, ahora):
     return "⏳", "le toca ahora, sale en la próxima vuelta"
 
 
-def fulvio(llave, gh_repos, ahora):
-    """(líneas del resumen, cuántos videos se crearon, problema) leyendo el aviso del día del repo de Fulvio."""
-    dia = ahora.date()
+def otro(o, llave, gh_repos, ahora):
+    """(líneas del resumen, cuántos videos se crearon, problema) leyendo el aviso del día del repo de una página "otros"."""
+    dia, repo = ahora.date(), o["repo"]
+    horas = {k: h for k, h in enumerate(o.get("horas") or [], start=1)}
     if not llave:
         return ["No puedo mirarlo: falta la llave LLAVE_REPOS."], None, None
     try:
-        avisos = gh_repos.pedir(llave, "GET", f"/repos/{FULVIO}/issues?labels=video&state=all&per_page=5")
+        avisos = gh_repos.pedir(llave, "GET", f"/repos/{repo}/issues?labels=video&state=all&per_page=5")
     except Exception:
         return ["No puedo mirarlo todavía: la llave LLAVE_REPOS no tiene permiso para leer los avisos (issues) de "
-                "dato-de-fulvio. Hay que darle ese permiso (ver AGENTS.md)."], None, None
+                f"{repo.split('/')[-1]}. Hay que darle ese permiso (ver AGENTS.md)."], None, None
     aviso = next((a for a in avisos if f"dia:{dia.isoformat()}" in (a.get("body") or "")), None)
     if not aviso:
         return ["❌ Hoy **no se crearon** los videos (no hay aviso del día)."], 0, True
@@ -102,20 +101,20 @@ def fulvio(llave, gh_repos, ahora):
             redes = [r for r, m in (("Instagram", f"ig-{k}"), ("Facebook", f"fb-{k}")) if m in etiquetas] or ["Instagram", "Facebook"]
             txt = f"✅ salió en {', '.join(redes)}"
         elif f"precio-{k}" in etiquetas:
-            txt, problema = "✋ no salió: le subió el precio a un producto", True
+            txt, problema = "✋ no salió: su repo lo frenó", True
         elif f"fallo-{k}" in etiquetas:
             txt, problema = "⏳ Meta no lo aceptó todavía, sigo reintentando", True
         elif f"aprobado-{k}" in etiquetas:
-            h, m = map(int, FULVIO_HORAS.get(k, "23:59").split(":"))
+            h, m = map(int, horas.get(k, "23:59").split(":")[:2])
             txt = "🕒 esperando su hora" if ahora.time() < datetime.time(h, m) else "⏳ le toca ahora, sale en la próxima vuelta"
         else:
             txt = "⛔ frenado"
-        lineas.append(f"- {FULVIO_HORAS.get(k, '?')} · {cat} · {txt}")
-    lineas.append(f"- [Ver el aviso de Fulvio]({aviso['html_url']})")
+        lineas.append(f"- {horas.get(k, '?')} · {cat} · {txt}")
+    lineas.append(f"- [Ver el aviso]({aviso['html_url']})")
     return lineas, len(videos), problema
 
 
-def alerta_manana(gh, items, paginas, ahora, cuando, llave, gh_repos):
+def alerta_manana(gh, items, paginas, otros, ahora, cuando, llave, gh_repos):
     """Desde las 9:30: si a una página le faltan videos de hoy, avisa al tiro (una vez al día)."""
     marca = f"<!-- creados:{ahora.date().isoformat()} -->"
     if ya_enviado(gh, marca)[0]:
@@ -126,9 +125,9 @@ def alerta_manana(gh, items, paginas, ahora, cuando, llave, gh_repos):
         esperados = pag.get("por_dia")
         if esperados and len(hoy.get(nombre, [])) < esperados:
             faltan.append(f"- **{pag['nombre']}**: se crearon {len(hoy.get(nombre, []))} de {esperados} videos de hoy.")
-    lineas, n, _ = fulvio(llave, gh_repos, ahora)
-    if n == 0:
-        faltan.append("- **El Dato de Fulvio**: hoy no se crearon los videos (no hay aviso del día).")
+    for o in otros:
+        if otro(o, llave, gh_repos, ahora)[1] == 0:
+            faltan.append(f"- **{o['nombre']}**: hoy no se crearon los videos (no hay aviso del día).")
     if not faltan:
         return
     cuerpo = ("Esta mañana no se crearon todos los videos de hoy:\n\n" + "\n".join(faltan)
@@ -137,7 +136,7 @@ def alerta_manana(gh, items, paginas, ahora, cuando, llave, gh_repos):
     enviar(gh, f"⚠️ Faltan videos de hoy ({ahora:%d/%m})", cuerpo)
 
 
-def resumen_noche(gh, items, paginas, ahora, cuando, llave, gh_repos, claves_malas):
+def resumen_noche(gh, items, paginas, otros, ahora, cuando, llave, gh_repos, claves_malas):
     dia = ahora.date()
     marca = f"<!-- resumen:{dia.isoformat()} -->"
     if ya_enviado(gh, marca)[0]:
@@ -150,7 +149,7 @@ def resumen_noche(gh, items, paginas, ahora, cuando, llave, gh_repos, claves_mal
         lista = hoy.get(nombre, [])
         esperados = (pag or {}).get("por_dia")
         if not lista and not esperados:
-            continue   # páginas sin videos hoy (Biophilia cuando no hay nada en la cola)
+            continue   # páginas sin videos hoy (las de cola a mano, cuando no hay nada para hoy)
         titulo = (pag or {}).get("nombre", nombre)
         lineas = []
         if esperados and len(lista) < esperados:
@@ -159,7 +158,7 @@ def resumen_noche(gh, items, paginas, ahora, cuando, llave, gh_repos, claves_mal
         for momento, it in lista:
             icono, txt = estado_de(it, momento, pag, ahora)
             nombre_video = getattr(it, "titulo", None) or (it.texto.strip().splitlines() or [""])[0][:60]
-            # "Buscadores · 2026-10-27 12:00 · N.º 39 …" → "N.º 39 …" (la página y la hora ya se ven)
+            # "Página · 2026-10-27 12:00 · N.º 39 …" → "N.º 39 …" (la página y la hora ya se ven)
             nombre_video = re.sub(r"^.*?\d{4}-\d{2}-\d{2} \d{1,2}:\d{2}( · )?", "", nombre_video).strip()
             lineas.append(f"- {momento:%H:%M} · " + (f"{nombre_video} · " if nombre_video else "") + f"{icono} {txt}")
             if icono in ("❌", "⏳") and it.estado.get("error"):
@@ -169,13 +168,14 @@ def resumen_noche(gh, items, paginas, ahora, cuando, llave, gh_repos, claves_mal
             salieron += icono == "✅"
         creados += len(lista)
         partes.append(f"### {titulo}\n" + "\n".join(lineas))
-    lineas, n, problema = fulvio(llave, gh_repos, ahora)
-    partes.append("### El Dato de Fulvio\n" + "\n".join(l if l.startswith("-") else f"- {l}" for l in lineas))
-    if n:
-        creados += n
-        salieron += sum("✅" in l for l in lineas)
-    if problema:
-        problemas.append("El Dato de Fulvio")
+    for o in otros:
+        lineas, n, problema = otro(o, llave, gh_repos, ahora)
+        partes.append(f"### {o['nombre']}\n" + "\n".join(l if l.startswith("-") else f"- {l}" for l in lineas))
+        if n:
+            creados += n
+            salieron += sum("✅" in l for l in lineas)
+        if problema:
+            problemas.append(o["nombre"])
 
     if claves_malas:   # una llave vencida hace que mañana no salga nada en esa red: se avisa antes
         partes.append("### 🔑 Llaves que no funcionan\n" + "\n".join(f"- ❌ {c}" for c in claves_malas)
@@ -192,7 +192,7 @@ def resumen_noche(gh, items, paginas, ahora, cuando, llave, gh_repos, claves_mal
 
 def rearmar_uno(llave, gh_repos, ahora, nombre, armar):
     """Manda a armar de nuevo el repo de una página (su workflow arma solo los videos que faltan)."""
-    h, m = map(int, armar.get("desde", "07:30").split(":"))
+    h, m = map(int, armar.get("desde", "07:30").split(":")[:2])
     if not (datetime.time(h, m) <= ahora.time() < REARMAR_HASTA):
         return
     repo, wf = armar["repo"], armar["workflow"]
@@ -211,7 +211,7 @@ def rearmar_uno(llave, gh_repos, ahora, nombre, armar):
     print(f"vigilante: a {nombre} le faltan videos de hoy → lo mandé a armar de nuevo ({repo} {wf})")
 
 
-def rearmar(items, paginas, ahora, cuando, llave, gh_repos):
+def rearmar(items, paginas, otros, ahora, cuando, llave, gh_repos):
     if not llave:
         return
     hoy = del_dia(items, ahora.date(), cuando)
@@ -221,18 +221,19 @@ def rearmar(items, paginas, ahora, cuando, llave, gh_repos):
                 rearmar_uno(llave, gh_repos, ahora, nombre, pag["armar"])
             except Exception as ex:
                 print(f"vigilante: no pude revisar {nombre} ({' '.join(str(ex).split())[:200]})")
-    try:
-        if fulvio(llave, gh_repos, ahora)[1] == 0:
-            rearmar_uno(llave, gh_repos, ahora, "El Dato de Fulvio", FULVIO_ARMAR)
-    except Exception as ex:
-        print(f"vigilante: no pude revisar Fulvio ({' '.join(str(ex).split())[:200]})")
+    for o in otros:
+        try:
+            if o.get("armar") and otro(o, llave, gh_repos, ahora)[1] == 0:
+                rearmar_uno(llave, gh_repos, ahora, o["nombre"], o["armar"])
+        except Exception as ex:
+            print(f"vigilante: no pude revisar {o['nombre']} ({' '.join(str(ex).split())[:200]})")
 
 
-def revisar(gh, items, paginas, ahora, cuando, llave, gh_repos, probar_claves):
+def revisar(gh, items, paginas, otros, ahora, cuando, llave, gh_repos, probar_claves):
     hora = ahora.time()
-    rearmar(items, paginas, ahora, cuando, llave, gh_repos)
+    rearmar(items, paginas, otros, ahora, cuando, llave, gh_repos)
     if PRUEBA or HORA_ALERTA <= hora < HORA_RESUMEN:
-        alerta_manana(gh, items, paginas, ahora, cuando, llave, gh_repos)
+        alerta_manana(gh, items, paginas, otros, ahora, cuando, llave, gh_repos)
     if PRUEBA or hora >= HORA_RESUMEN:
         if PRUEBA or not ya_enviado(gh, f"<!-- resumen:{ahora.date().isoformat()} -->")[0]:
-            resumen_noche(gh, items, paginas, ahora, cuando, llave, gh_repos, probar_claves())
+            resumen_noche(gh, items, paginas, otros, ahora, cuando, llave, gh_repos, probar_claves())

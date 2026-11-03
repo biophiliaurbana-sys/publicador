@@ -1,8 +1,8 @@
 """ENCOLAR · sube un video a tu Drive (privado) y lo anota en la planilla de la cola para que salga solo a su hora.
-  python encolar.py --pagina entrenando-mentes --video ruta/video.mp4 --hora "2026-10-28 20:00" --texto "Texto…"
+  python encolar.py --pagina mi-gimnasio --video ruta/video.mp4 --hora "2026-10-28 20:00" --texto "Texto…"
   (--texto-archivo texto.txt en vez de --texto; --portada portada.jpg es opcional)
-La hora es de Chile. Lo puede usar una persona, un agente (DeepSeek Harness, Antigravity…) o el repo privado de
-una marca desde GitHub Actions. Necesita, como variables o en un archivo .env al lado de este script:
+La hora es la local de la planilla. Lo puede usar una persona, un agente (DeepSeek Harness, Antigravity…) o el repo privado de
+una página desde GitHub Actions. Necesita, como variables o en un archivo .env al lado de este script:
 GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH, HOJA_COLA y CARPETA_VIDEOS (ID de la carpeta de Drive)."""
 import argparse, datetime, os, re, sys
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -21,9 +21,9 @@ def cargar_env():
 
 def main():
     ap = argparse.ArgumentParser(description="Deja un video en la cola del publicador.")
-    ap.add_argument("--pagina", required=True, help="nombre del archivo en paginas/ (sin .json)")
+    ap.add_argument("--pagina", required=True, help="nombre del archivo en paginas/ (columna A de la pestaña paginas)")
     ap.add_argument("--video", required=True)
-    ap.add_argument("--hora", required=True, help='hora de Chile, "AAAA-MM-DD HH:MM"')
+    ap.add_argument("--hora", required=True, help='hora local, "AAAA-MM-DD HH:MM"')
     ap.add_argument("--texto", default="")
     ap.add_argument("--texto-archivo")
     ap.add_argument("--portada")
@@ -33,8 +33,6 @@ def main():
     falta = [k for k in ("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REFRESH", "HOJA_COLA") if not os.environ.get(k)]
     if falta:
         sys.exit("Faltan estas claves: " + ", ".join(falta))
-    if os.path.isdir(os.path.join(AQUI, "paginas")) and not os.path.exists(os.path.join(AQUI, "paginas", f"{a.pagina}.json")):
-        sys.exit(f"No existe la página '{a.pagina}' (falta paginas/{a.pagina}.json).")
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2} \d{1,2}:\d{2}", a.hora.strip()):
         sys.exit('La hora va así: "2026-10-28 20:00".')
     cuando = datetime.datetime.strptime(a.hora.strip(), "%Y-%m-%d %H:%M")

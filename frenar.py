@@ -1,6 +1,6 @@
 """FRENAR · python frenar.py <link del video en Drive> [--motivo "texto"]
 Marca con ⛔ la fila de ese video en la cola para que NO se publique (si todavía no salió).
-Lo usan los avisos de los repos de marca ("frenar" en un comentario) o un agente. No borra nada.
+Lo usan los avisos de los repos que arman videos ("frenar" en un comentario) o un agente. No borra nada.
 Claves igual que encolar.py (variables o .env): GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH, HOJA_COLA."""
 import argparse, os, sys
 AQUI = os.path.dirname(os.path.abspath(__file__))

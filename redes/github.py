@@ -1,7 +1,7 @@
-"""Videos guardados en GitHub: cada video es un *release* de un repo privado de marca (con video.mp4 adjunto).
-Lo usan las páginas que arman su contenido solas (Entrenando Mentes, Buscadores…), para no pasar por Drive.
+"""Videos guardados en GitHub: cada video es un *release* de un repo privado (con video.mp4 adjunto).
+Lo usan las páginas que arman su contenido solas con código, para no pasar por Drive.
 El release lleva en su texto una marca oculta con la página, la fecha, la hora y el estado:
-  <!-- publicador {"pagina": "entrenando-mentes", "fecha": "2026-10-28", "hora": "13:00", "estado": {}} -->
+  <!-- publicador {"pagina": "mi-pagina", "fecha": "2026-10-28", "hora": "13:00", "estado": {}} -->
 El título del release muestra el estado (🕒 ⏳ ✅ ⚠️). Si empieza con ⛔, está frenado y no sale."""
 import base64, json, re, urllib.error, urllib.request
 

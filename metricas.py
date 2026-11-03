@@ -1,6 +1,6 @@
 """Reproducciones de cada página (solo lee, no publica nada). Sale en la corrida "solo probar" del publicador.
 
-Facebook/Instagram: los últimos Reels de la página con la llave de Meta de paginas/*.json.
+Facebook/Instagram: los últimos Reels de la página con la llave de Meta de cada página (pestaña paginas).
 YouTube: los videos que subió el publicador (ids guardados en la cola), con la llave de cada canal.
 Cada fila empieza con "VIDEO" y va separada por tabulaciones (fácil de copiar a una planilla)."""
 import json, urllib.error, urllib.parse, urllib.request

@@ -3,11 +3,11 @@
   python publicar.py --prueba   → muestra la cola y revisa las claves, sin publicar nada
 
 La cola es una planilla de Google tuya (variable HOJA_COLA), pestaña "cola", una fila por video:
-  A página · B fecha · C hora (de Chile) · D video (link de Drive) · E texto · F portada (link, opcional)
+  A página · B fecha · C hora · D video (link de Drive) · E texto · F portada (link, opcional)
   G estado y H detalle → los escribe el sistema; no los toques.
-<página> es un archivo de paginas/. Los videos quedan privados en tu Drive: nadie más los ve.
-Además revisa los *releases* de los repos privados de marca (repos.json, secreto LLAVE_REPOS): las páginas que
-arman su contenido solas dejan ahí su video, sin pasar por Drive (ver redes/github.py).
+Las páginas se configuran en la pestaña "paginas" de esa misma planilla (ver config.py). Los videos quedan
+privados en tu Drive: nadie más los ve. Además revisa los *releases* de los repos privados de las páginas que
+arman su contenido solas (columna "repo" de la pestaña paginas, secreto LLAVE_REPOS; ver redes/github.py).
 Cada red se marca apenas sale, así un reintento nunca la repite. Si una red falla, las otras salen igual y la
 que falló se reintenta cada hora con una versión más liviana; a la 3.ª vuelta llega un aviso y a las 24 h se deja.
 Las claves vienen todas juntas en la variable SECRETOS (JSON); cada página dice en su archivo cuál usa."""
@@ -17,16 +17,17 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
 from redes import google, meta, youtube
 from redes import github as gh_repos
-import metricas, resumen
+import config, metricas, resumen
 
-CHILE = ZoneInfo("America/Santiago")
+ZONA = ZoneInfo(os.environ.get("ZONA_HORARIA") or "America/Santiago")   # la hora de la planilla es de esta zona
 VENCE_HORAS = 24
-REPO = os.environ.get("GITHUB_REPOSITORY", "biophiliaurbana-sys/publicador")
+REPO = os.environ.get("GITHUB_REPOSITORY", "")
 TOKEN_GH = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN", "")
 SECRETOS = {k: v.strip() if isinstance(v, str) else v for k, v in json.loads(os.environ.get("SECRETOS") or "{}").items()}  # sin espacios pegados por error
 HOJA = os.environ.get("HOJA_COLA", "").strip()
 PRUEBA = "--prueba" in sys.argv
 COLA = "cola"
+PAGINAS, REPOS, OTROS = {}, [], []   # se llenan en main() con config.cargar()
 
 
 def gh(metodo, ruta, datos=None):
@@ -44,12 +45,17 @@ def avisar(titulo, texto):
 
 
 def pagina(nombre):
-    ruta = os.path.join(AQUI, "paginas", f"{nombre.strip().lower()}.json")
-    return json.load(open(ruta, encoding="utf-8")) if os.path.exists(ruta) else None
+    return PAGINAS.get(nombre.strip().lower())
+
+
+def cargar_config(token=None):
+    global PAGINAS, REPOS, OTROS
+    leer = (lambda rango: google.leer(token, HOJA, rango)) if token and HOJA else None
+    PAGINAS, REPOS, OTROS = config.cargar(leer)
 
 
 def cuando(fecha, hora):
-    """Fecha y hora de la planilla → momento en Chile. Acepta 2026-10-28, 28-10-2026, 28/10/2026 o 28/10."""
+    """Fecha y hora de la planilla → momento en la zona horaria (ZONA_HORARIA). Acepta 2026-10-28, 28-10-2026, 28/10/2026 o 28/10."""
     f = fecha.strip()
     m = re.fullmatch(r"(\d{4})-(\d{1,2})-(\d{1,2})", f)
     if m:
@@ -64,7 +70,7 @@ def cuando(fecha, hora):
     h = re.match(r"(\d{1,2})[:.](\d{2})", hora.strip())
     if not h:
         raise ValueError(f"no entiendo la hora '{hora}'")
-    return datetime.datetime(a, me, d, int(h.group(1)), int(h.group(2)), tzinfo=CHILE)
+    return datetime.datetime(a, me, d, int(h.group(1)), int(h.group(2)), tzinfo=ZONA)
 
 
 def acceso_google(secreto="GOOGLE_REFRESH"):
@@ -91,7 +97,7 @@ def publicar_en(red, pag, video, texto, portada, ligero):
 
 
 class Fila:
-    """Un video de la planilla (cola hecha a mano: Biophilia, tiendas…). n = número de fila (la 1 son los títulos)."""
+    """Un video de la planilla (cola hecha a mano). n = número de fila (la 1 son los títulos)."""
     def __init__(self, token, n, fila):
         fila = (fila + [""] * 8)[:8]
         self.token, self.n = token, n
@@ -116,14 +122,14 @@ class Fila:
         return archivo, portada
 
     def limpiar(self):
-        # ya salió en todas sus redes: el video (y su portada) van a la papelera de Drive para no llenarlo (Danko 27-oct)
+        # ya salió en todas sus redes: el video (y su portada) van a la papelera de Drive para no llenarlo
         for link in (self.video, self.portada):
             if link.strip():
                 google.a_papelera(self.token, google.id_drive(link))
 
 
 class Lanzamiento:
-    """Un video guardado como release en el repo privado de una marca (contenido que se arma solo; sin Drive)."""
+    """Un video guardado como release en el repo privado de una página (contenido que se arma solo; sin Drive)."""
     def __init__(self, llave, repo, rel):
         self.llave, self.repo, self.id = llave, repo, rel["id"]
         self.marca, self.texto = gh_repos.leer_marca(rel.get("body"))
@@ -167,7 +173,7 @@ class Lanzamiento:
 
 
 def dias_en_pausa():
-    """Fechas de pausa.txt (AAAA-MM-DD, hora de Chile): esos días no se publica nada."""
+    """Fechas de pausa.txt (AAAA-MM-DD): esos días no se publica nada."""
     try:
         with open(os.path.join(AQUI, "pausa.txt"), encoding="utf-8") as f:
             return {l.split("#")[0].strip() for l in f if l.split("#")[0].strip()}
@@ -254,8 +260,7 @@ def revisar(item, ahora):
 def probar_claves():
     """Revisa la llave de Meta y de YouTube de cada página. Devuelve las que no funcionan (para el resumen del día)."""
     malas = []
-    for nombre in sorted(f[:-5] for f in os.listdir(os.path.join(AQUI, "paginas")) if f.endswith(".json")):
-        pag = pagina(nombre)
+    for nombre, pag in sorted(PAGINAS.items()):
         if {"facebook", "instagram"} & set(pag["redes"]):
             token = SECRETOS.get(pag.get("meta", ""))
             if not token:
@@ -269,9 +274,9 @@ def probar_claves():
                     try:   # una llave de Meta mal sacada dura 1 hora: se avisa antes de que venza
                         fin = meta.vence(token)
                         if fin:
-                            fin = datetime.datetime.fromtimestamp(fin, CHILE)
+                            fin = datetime.datetime.fromtimestamp(fin, ZONA)
                             print(f"{nombre}: OJO, la clave de Meta vence el {fin:%d/%m %H:%M}")
-                            if fin - datetime.datetime.now(CHILE) < datetime.timedelta(days=7):
+                            if fin - datetime.datetime.now(ZONA) < datetime.timedelta(days=7):
                                 malas.append(f"{pag['nombre']} · Facebook/Instagram: la llave {pag['meta']} vence el {fin:%d/%m a las %H:%M} "
                                              "(hay que sacar una que no venza: extenderla antes de pedir me/accounts)")
                         else:
@@ -297,13 +302,6 @@ def probar_claves():
     return malas
 
 
-def repos_de_marca():
-    try:
-        return json.load(open(os.path.join(AQUI, "repos.json"), encoding="utf-8")).get("repos", [])
-    except OSError:
-        return []
-
-
 def prueba_youtube():
     """Sube a cada canal un video de 3 s PRIVADO, con el nombre de la página en el título: así se ve en YouTube Studio
     que cada llave sube al canal correcto. No publica nada visible."""
@@ -313,8 +311,8 @@ def prueba_youtube():
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=0x1b3a4b:s=1080x1920:d=3",
                     "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-shortest", "-c:v", "libx264", "-pix_fmt", "yuv420p",
                     "-c:a", "aac", video], check=True)
-    for nombre in sorted(f[:-5] for f in os.listdir(os.path.join(AQUI, "paginas")) if f.endswith(".json")):
-        pag = pagina(nombre)
+    cargar_config(acceso_google() if HOJA else None)
+    for nombre, pag in sorted(PAGINAS.items()):
         if "youtube" not in pag["redes"]:
             continue
         try:
@@ -326,7 +324,7 @@ def prueba_youtube():
 
 
 def cambiar_portadas(llave, repo, items):
-    """portadas.json en el repo de marca: lista de {"release": etiqueta, "imagen": ruta en el repo}.
+    """portadas.json en el repo de la página: lista de {"release": etiqueta, "imagen": ruta en el repo}.
     Si el video ya salió, cambia la portada en Facebook y YouTube (Instagram no deja cambiarla por API).
     Si aún no sale, reemplaza la portada adjunta al release. Opcional: "facebook"/"youtube" con el id del video
     (si el release no los tiene anotados). Cada entrada hecha queda con "hecho" y el resultado."""
@@ -378,21 +376,22 @@ def cambiar_portadas(llave, repo, items):
 def main():
     if "--prueba-youtube" in sys.argv:
         return prueba_youtube()
-    ahora = datetime.datetime.now(CHILE)
-    print(f"Hora de Chile: {ahora:%Y-%m-%d %H:%M}")
+    ahora = datetime.datetime.now(ZONA)
+    print(f"Hora local: {ahora:%Y-%m-%d %H:%M}")
     if f"{ahora:%Y-%m-%d}" in PAUSA and not PRUEBA:
         print("Hoy es día de pausa (pausa.txt): no se publica nada ni se manda a armar videos.")
         return
-    if PRUEBA:
-        probar_claves()
-    items = []
+    items, token = [], None
     if HOJA:   # 1) la planilla (videos hechos a mano, en Drive)
         token = acceso_google()
         items += [Fila(token, i, f) for i, f in enumerate(google.leer(token, HOJA, f"{COLA}!A2:H"), start=2)]
     else:
         print("(sin planilla: falta la variable HOJA_COLA)")
+    cargar_config(token)
+    if PRUEBA:
+        probar_claves()
     llave = SECRETOS.get("LLAVE_REPOS")
-    for repo in repos_de_marca():   # 2) los releases de los repos privados de marca (videos que se arman solos)
+    for repo in REPOS:   # 2) los releases de los repos privados de las páginas (videos que se arman solos)
         if not llave:
             print(f"{repo}: falta el secreto LLAVE_REPOS (llave de GitHub para leer los repos privados)")
             break
@@ -402,7 +401,7 @@ def main():
                 print(f"{repo}: llave de GitHub OK")
         except Exception as ex:
             print(f"{repo}: no pude leer sus videos ({ex})")
-    for repo in repos_de_marca() if llave else []:
+    for repo in REPOS if llave else []:
         try:
             cambiar_portadas(llave, repo, items)
         except Exception as ex:
@@ -414,14 +413,12 @@ def main():
             print(f"· {item.etiqueta}: error inesperado: {ex}")
     if PRUEBA:   # "solo probar" también muestra las reproducciones de cada página (metricas.py)
         try:
-            paginas = {f[:-5]: pagina(f[:-5]) for f in sorted(os.listdir(os.path.join(AQUI, "paginas"))) if f.endswith(".json")}
-            metricas.mostrar(paginas, SECRETOS, acceso_google, items)
+            metricas.mostrar(PAGINAS, SECRETOS, acceso_google, items)
         except Exception as ex:
             print(f"(no pude leer las reproducciones: {' '.join(str(ex).split())[:200]})")
     try:   # avisos del día en la app de GitHub: faltan videos (9:30) y resumen (22:30); ver resumen.py
         resumen.PRUEBA = PRUEBA
-        paginas = {f[:-5]: pagina(f[:-5]) for f in sorted(os.listdir(os.path.join(AQUI, "paginas"))) if f.endswith(".json")}
-        resumen.revisar(gh, items, paginas, ahora, cuando, llave, gh_repos, probar_claves)
+        resumen.revisar(gh, items, PAGINAS, OTROS, ahora, cuando, llave, gh_repos, probar_claves)
     except Exception as ex:
         print(f"(no pude armar el resumen del día: {' '.join(str(ex).split())[:200]})")
 
