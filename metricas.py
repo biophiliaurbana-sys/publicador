@@ -81,7 +81,7 @@ def youtube(nombre, acceso, ids):
             seg, pct = ret.get(v["id"], (None, None))   # Analytics tarda ~1-2 días en tener los datos
             _fila(nombre, "YT", v["snippet"]["publishedAt"][:16], s.get("viewCount"), seg, s.get("likeCount"),
                   s.get("commentCount"),
-                  f"[{v['status']['privacyStatus']}{f' · {pct:.0f}% visto' if pct is not None else ''}] {v['snippet']['title'][:60]}",
+                  f"[{v['status']['privacyStatus']}{f' · {pct:.0f}% visto' if pct is not None else ''}{' · ETIQUETA IA' if v['status'].get('containsSyntheticMedia') else ''}] {v['snippet']['title'][:60]}",
                   f"https://youtu.be/{v['id']}")
 
 
