@@ -17,14 +17,26 @@ def _pedir(req):
 
 
 def subir(acceso, video, titulo, descripcion, privacidad="public"):
+    # containsSyntheticMedia: False = la respuesta "No" de "Uso de la IA" en YouTube Studio (sin etiqueta de IA).
+    # Es lo correcto mientras los videos no muestren personas reales diciendo cosas que no dijeron, ni escenas o
+    # hechos reales falsos de aspecto realista, ni música hecha con IA. Si un video sí lo hace, hay que poner True.
     meta = {"snippet": {"title": titulo[:100], "description": descripcion[:5000], "categoryId": "22"},
-            "status": {"privacyStatus": privacidad, "selfDeclaredMadeForKids": False}}
+            "status": {"privacyStatus": privacidad, "selfDeclaredMadeForKids": False, "containsSyntheticMedia": False}}
     tam = os.path.getsize(video)
-    cab, _ = _pedir(urllib.request.Request(
-        "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
-        data=json.dumps(meta).encode(), method="POST",
-        headers={"Authorization": f"Bearer {acceso}", "Content-Type": "application/json; charset=UTF-8",
-                 "X-Upload-Content-Type": "video/mp4", "X-Upload-Content-Length": str(tam)}))
+
+    def iniciar(datos):
+        return _pedir(urllib.request.Request(
+            "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
+            data=json.dumps(datos).encode(), method="POST",
+            headers={"Authorization": f"Bearer {acceso}", "Content-Type": "application/json; charset=UTF-8",
+                     "X-Upload-Content-Type": "video/mp4", "X-Upload-Content-Length": str(tam)}))
+    try:
+        cab, _ = iniciar(meta)
+    except ErrorYouTube as e:
+        if "containsSyntheticMedia" not in str(e):
+            raise
+        meta["status"].pop("containsSyntheticMedia")   # si algún día YouTube no acepta el campo, sube igual
+        cab, _ = iniciar(meta)
     _, cuerpo = _pedir(urllib.request.Request(cab["Location"], data=open(video, "rb").read(), method="PUT",
                                               headers={"Authorization": f"Bearer {acceso}", "Content-Type": "video/mp4"}))
     return json.loads(cuerpo)["id"]
