@@ -23,7 +23,8 @@ GitHub que solo puede correr Actions. Si nada sale en horas, revisa primero esa 
 Secretos (solo nombres, nunca valores): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH` (Drive y planilla);
 opcional `YT_CLIENT_ID`, `YT_CLIENT_SECRET` (otro proyecto de Google solo para YouTube); uno `META_...` y/o `YT_...` por
 página (sus nombres están en la pestaña `paginas`); `LLAVE_REPOS` (lee los repos privados de las páginas que se arman
-solas; con permiso Actions para relanzarlas). Variable: `HOJA_COLA` (ID de la planilla).
+solas; con permiso Actions para relanzarlas; si un repo es de otra cuenta u organización, una llave aparte
+en el secreto `LLAVE_<DUEÑO>`, ej. `LLAVE_MI_ORG` para github.com/mi-org/...). Variable: `HOJA_COLA` (ID de la planilla).
 
 Reglas:
 - Nunca publiques al instante: todo va a la cola con fecha y hora.

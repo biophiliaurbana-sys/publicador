@@ -18,7 +18,18 @@ class _SinRedireccion(urllib.request.HTTPRedirectHandler):
         return None
 
 
+# Llave por dueño: un secreto LLAVE_<DUEÑO> (ej. LLAVE_MI_ORG para github.com/mi-org/...) se usa en vez de
+# LLAVE_REPOS para los repos de ese dueño. Sirve cuando tus repos están en más de una cuenta u organización.
+LLAVES = {}
+
+
+def _llave(llave, url):
+    m = re.search(r"/repos/([^/]+)/", url)
+    return LLAVES.get(m.group(1).lower().replace("-", "_"), llave) if m else llave
+
+
 def pedir(llave, metodo, url, datos=None, cabeceras=None, crudo=False, cuerpo=None):
+    llave = _llave(llave, url)
     h = {"Authorization": f"Bearer {llave}", "Accept": "application/vnd.github+json", **(cabeceras or {})}
     r = urllib.request.Request(url if url.startswith("http") else API + url, method=metodo, headers=h,
                                data=json.dumps(datos).encode() if datos is not None else cuerpo)
@@ -51,6 +62,7 @@ def editar(llave, repo, release_id, **campos):
 
 def bajar(llave, repo, asset_id, destino):
     """El archivo de un release privado: GitHub redirige a un link temporal que se baja SIN la llave."""
+    llave = _llave(llave, f"/repos/{repo}/")
     r = urllib.request.Request(f"{API}/repos/{repo}/releases/assets/{asset_id}",
                                headers={"Authorization": f"Bearer {llave}", "Accept": "application/octet-stream"})
     try:

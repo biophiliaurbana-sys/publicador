@@ -391,6 +391,9 @@ def main():
     if PRUEBA:
         probar_claves()
     llave = SECRETOS.get("LLAVE_REPOS")
+    gh_repos.LLAVES = {k[6:].lower(): v for k, v in SECRETOS.items()   # LLAVE_<DUEÑO>: ver redes/github.py
+                       if k.startswith("LLAVE_") and k != "LLAVE_REPOS" and v}
+    llave = llave or next(iter(gh_repos.LLAVES.values()), None)
     for repo in REPOS:   # 2) los releases de los repos privados de las páginas (videos que se arman solos)
         if not llave:
             print(f"{repo}: falta el secreto LLAVE_REPOS (llave de GitHub para leer los repos privados)")
