@@ -107,6 +107,8 @@ Las llaves para esto van en un archivo `.env` al lado del script (nunca se sube 
 - **Días de pausa:** una fecha por línea en `pausa.txt` (`2026-12-25`) y ese día no sale nada.
 - **Avisos en el celular** (app de GitHub, etiqueta `resumen`): a las 9:30 si faltan videos de hoy, y a las 22:30 un
   resumen de qué salió en cada red y qué falló.
+- **Si algo falla:** llega un aviso (etiqueta `error`) que explica en simple qué pasó y si se arregla solo. Cuando la
+  vuelta siguiente sale bien, el mismo aviso dice "Solucionado" y se cierra.
 - **Estadísticas:** "Solo probar" también muestra, por video, vistas, segundos promedio que lo miran, % visto
   (YouTube), me gusta y comentarios.
 - **Zona horaria:** por defecto `America/Santiago`. Para otra, cambia `ZONA` en `publicar.py`.

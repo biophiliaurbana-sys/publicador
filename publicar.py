@@ -426,5 +426,65 @@ def main():
         print(f"(no pude armar el resumen del día: {' '.join(str(ex).split())[:200]})")
 
 
+def en_simple(ex):
+    """El error explicado sin palabras técnicas, y si se arregla solo."""
+    t = str(ex)
+    if any(c in t for c in (" 500", " 502", " 503", " 504", "internal_failure", "timed out", "Temporary failure",
+                            "Connection reset", "Remote end closed")):
+        return ("Un servicio de afuera (Google, Meta o GitHub) falló un momento de su lado. No es culpa tuya ni del "
+                "programa. Casi siempre se arregla solo en la vuelta siguiente (15 min).")
+    if "invalid_grant" in t or " 401" in t or "expired" in t.lower():
+        return ("Una llave venció o fue cambiada. Esto NO se arregla solo: hay que rehacer esa llave "
+                "(ver AGENTS.md → Arreglar errores).")
+    if " 403" in t or " 404" in t:
+        return ("A una llave le falta permiso o no encuentra algo (la planilla, un repo o un video). Revisa que no "
+                "se haya movido o borrado nada. Si en la vuelta siguiente sigue igual, hay que revisarlo.")
+    return ("Error del programa no conocido. Si en la vuelta siguiente sigue igual, pídele a una IA que lo revise "
+            "con este detalle (ver AGENTS.md).")
+
+
+ETIQUETA_ERROR = "error"
+
+
+def avisar_error(ex):
+    """Si una vuelta falla, deja UN aviso (issue 'error'; llega por correo/app). Si ya hay uno abierto, suma un comentario."""
+    detalle = " ".join(str(ex).split())[:400]
+    abiertos = gh("GET", f"/issues?labels={ETIQUETA_ERROR}&state=open&per_page=5") or []
+    hora = f"{datetime.datetime.now(ZONA):%d-%m %H:%M}"
+    texto = f"**Qué pasó ({hora}):** {en_simple(ex)}\n\n**Detalle técnico:** `{type(ex).__name__}: {detalle}`"
+    if abiertos:
+        gh("POST", f"/issues/{abiertos[0]['number']}/comments", {"body": "Sigue fallando.\n\n" + texto})
+        return
+    try:
+        gh("POST", "/labels", {"name": ETIQUETA_ERROR, "color": "D93F0B"})
+    except Exception:
+        pass
+    gh("POST", "/issues", {"title": f"⚠️ El publicador falló ({hora})", "labels": [ETIQUETA_ERROR],
+                           "body": texto + "\n\nCuando la siguiente vuelta salga bien, te aviso aquí y cierro este aviso."})
+
+
+def cerrar_errores():
+    """Vuelta OK: si había un aviso de error abierto, dice que se solucionó y lo cierra."""
+    for a in gh("GET", f"/issues?labels={ETIQUETA_ERROR}&state=open&per_page=5") or []:
+        gh("POST", f"/issues/{a['number']}/comments",
+           {"body": f"✅ Solucionado: la vuelta de las {datetime.datetime.now(ZONA):%H:%M} salió bien. No tienes que hacer nada."})
+        gh("PATCH", f"/issues/{a['number']}", {"state": "closed", "state_reason": "completed"})
+
+
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as ex:
+        if PRUEBA or "--prueba-youtube" in sys.argv:
+            raise
+        import traceback
+        traceback.print_exc()
+        try:
+            avisar_error(ex)   # ya avisado en palabras simples: no hace falta el correo genérico de "falló"
+        except Exception:
+            raise ex
+    if not PRUEBA and "--prueba-youtube" not in sys.argv:
+        try:
+            cerrar_errores()
+        except Exception as ex:
+            print(f"(no pude revisar avisos de error: {ex})")
