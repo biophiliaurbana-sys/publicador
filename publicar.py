@@ -82,14 +82,14 @@ def acceso_google(secreto="GOOGLE_REFRESH"):
     return google.acceso(SECRETOS[f"{cliente}_ID"], SECRETOS[f"{cliente}_SECRET"], SECRETOS[secreto])
 
 
-def publicar_en(red, pag, video, texto, portada, ligero):
+def publicar_en(red, pag, video, texto, portada, ligero, prueba=None):
     if red in ("facebook", "instagram"):
         token = SECRETOS.get(pag["meta"])
         if not token:
             raise RuntimeError(f"Falta la clave {pag['meta']} en los secretos del repo.")
         if red == "facebook":
             return meta.facebook(token, video, texto, portada)
-        return meta.instagram(token, video, texto, ligero, portada)
+        return meta.instagram(token, video, texto, ligero, portada, prueba)
     if red == "youtube":
         titulo = texto.strip().splitlines()[0] if texto.strip() else pag["nombre"]
         return youtube.subir(acceso_google(pag["youtube"]), video, titulo, texto, pag.get("youtube_privacidad", "public"))
@@ -137,6 +137,7 @@ class Lanzamiento:
         m = self.marca or {}
         self.nombre, self.fecha, self.hora = m.get("pagina", ""), m.get("fecha", ""), m.get("hora", "")
         self.estado = m.get("estado") or {}
+        self.prueba = m.get("prueba")   # opcional: "auto" o "manual" = Reel de prueba en Instagram (solo lo ven no seguidores)
         self.redes = m.get("redes")   # opcional: solo algunas redes de la página (p. ej. ["youtube"] para videos que ya salieron en Facebook)
         self.resumen = rel.get("name") or ""
         self.titulo = m.get("titulo") or f"{self.nombre} · {self.fecha} {self.hora}"
@@ -232,7 +233,8 @@ def revisar(item, ahora):
     archivo, portada_archivo = item.bajar(carpeta)
     for red in faltan:
         try:
-            ident = publicar_en(red, pag, archivo, item.texto, portada_archivo, ligero=estado.get("intentos", 0) > 0)
+            ident = publicar_en(red, pag, archivo, item.texto, portada_archivo, ligero=estado.get("intentos", 0) > 0,
+                                prueba=getattr(item, "prueba", None))
             hechas.add(red)
             estado.setdefault("ids", {})[red] = str(ident)   # sirve para cambiarle la portada después (portadas.json)
             print(f"  ✅ {red}: publicado ({ident})")

@@ -111,7 +111,9 @@ def enlace_portada(token, archivo):
     return max(imagenes, key=lambda i: i.get("width", 0))["source"]
 
 
-def instagram(token, video, texto, ligero=False, portada=None):
+def instagram(token, video, texto, ligero=False, portada=None, prueba=None):
+    """prueba = "auto" o "manual": Reel de prueba (Trial Reel). Instagram lo muestra solo a gente que no te sigue;
+    con "auto" lo comparte con tus seguidores si le va bien en 72 horas, con "manual" decides tú en la app."""
     ig = (cuenta(token).get("instagram_business_account") or {}).get("id")
     if not ig:
         raise ErrorMeta("La página no tiene un Instagram profesional conectado.")
@@ -123,6 +125,8 @@ def instagram(token, video, texto, ligero=False, portada=None):
             extra["cover_url"] = enlace_portada(token, portada)
         except Exception as e:   # sin portada igual se publica
             print(f"aviso: no pude preparar la portada para Instagram ({e})")
+    if prueba:
+        extra["trial_params"] = json.dumps({"graduation_strategy": "SS_PERFORMANCE" if prueba == "auto" else "MANUAL"})
     for n in range(3):   # a ratos Meta rechaza la subida y minutos después la acepta
         c = pedir("POST", f"{API}/{ig}/media", {"media_type": "REELS", "upload_type": "resumable", "caption": texto,
                                                "share_to_feed": "true", "access_token": token, **extra})

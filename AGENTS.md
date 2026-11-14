@@ -13,7 +13,8 @@ Pedidos típicos:
 - "Agrega una página" → una fila nueva en la pestaña `paginas` + sus secretos `META_...`/`YT_...` (los guarda el dueño).
 - Páginas que se arman solas (columna "repo"): su cola son los *releases* de ese repo privado, con una marca oculta
   (ver `redes/github.py`); frenar = poner ⛔ al inicio del título del release. `"redes": ["youtube"]` en la marca
-  publica solo en esas redes.
+  publica solo en esas redes. `"prueba": "auto"` (o `"manual"`) sube a Instagram como Reel de prueba (Trial Reel):
+  solo lo ven no seguidores; con "auto" Instagram lo comparte a tus seguidores si le va bien en 72 h.
 - "¿Por qué no salió?" → columna G de su fila, los avisos (issues con etiqueta `resumen`) y la última corrida de
   *Actions → Publicar*.
 
