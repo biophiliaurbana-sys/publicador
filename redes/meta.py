@@ -125,11 +125,14 @@ def instagram(token, video, texto, ligero=False, portada=None, prueba=None):
             extra["cover_url"] = enlace_portada(token, portada)
         except Exception as e:   # sin portada igual se publica
             print(f"aviso: no pude preparar la portada para Instagram ({e})")
-    if prueba:
+    feed = {"share_to_feed": "true"}
+    if prueba:   # Reel de prueba: sin share_to_feed (con share_to_feed=true Instagram lo publica como Reel normal)
         extra["trial_params"] = json.dumps({"graduation_strategy": "SS_PERFORMANCE" if prueba == "auto" else "MANUAL"})
+        feed = {}
+        print(f"Instagram: Reel de prueba ({extra['trial_params']})")
     for n in range(3):   # a ratos Meta rechaza la subida y minutos después la acepta
         c = pedir("POST", f"{API}/{ig}/media", {"media_type": "REELS", "upload_type": "resumable", "caption": texto,
-                                               "share_to_feed": "true", "access_token": token, **extra})
+                                               "access_token": token, **feed, **extra})
         try:
             subir(c["uri"], token, video)
             break
@@ -138,8 +141,8 @@ def instagram(token, video, texto, ligero=False, portada=None, prueba=None):
             if n == 2:
                 # plan B: el video se sube oculto a la página de Facebook y se le pasa a Instagram ese enlace
                 c = pedir("POST", f"{API}/{ig}/media", {"media_type": "REELS", "video_url": enlace_oculto(token, video),
-                                                       "caption": texto, "share_to_feed": "true", "access_token": token,
-                                                       **extra})
+                                                       "caption": texto, "access_token": token,
+                                                       **feed, **extra})
                 break
             print("reintento en 2 minutos")
             time.sleep(120)
