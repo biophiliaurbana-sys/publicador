@@ -48,7 +48,43 @@ def version_ligera(video):
     return ligero
 
 
+def es_horizontal(video):
+    """True si el video es más ancho que alto (videos largos de YouTube). Si no se puede medir, se trata como Reel."""
+    try:
+        if not shutil.which("ffprobe"):
+            subprocess.run("sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg > /dev/null", shell=True, check=True)
+        r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height",
+                            "-of", "csv=p=0", video], capture_output=True, text=True, check=True)
+        ancho, alto = map(int, r.stdout.strip().split(",")[:2])
+        return ancho > alto
+    except Exception as e:
+        print(f"aviso: no pude medir el video ({e}); va como Reel")
+        return False
+
+
+def facebook_video(token, video, texto, portada=None):
+    """Video normal (horizontal, largo) en la página: los Reels solo aceptan verticales."""
+    yo = cuenta(token)
+    limite = "----publicador" + str(int(time.time()))
+    titulo = texto.strip().splitlines()[0][:250] if texto.strip() else ""
+    partes = b""
+    for k, v in (("description", texto), ("title", titulo), ("published", "true")):
+        partes += f"--{limite}\r\nContent-Disposition: form-data; name=\"{k}\"\r\n\r\n{v}\r\n".encode()
+    for campo, archivo, tipo in (("source", video, "video/mp4"), ("thumb", portada, "image/jpeg")):
+        if archivo:
+            partes += (f"--{limite}\r\nContent-Disposition: form-data; name=\"{campo}\"; filename=\"{os.path.basename(archivo)}\"\r\n"
+                       f"Content-Type: {tipo}\r\n\r\n").encode() + open(archivo, "rb").read() + b"\r\n"
+    partes += f"--{limite}--\r\n".encode()
+    r = pedir("POST", f"{API.replace('graph.', 'graph-video.')}/{yo['id']}/videos?access_token={token}", cuerpo=partes,
+              cabeceras={"Content-Type": f"multipart/form-data; boundary={limite}"})
+    if not r.get("id"):
+        raise ErrorMeta(f"Facebook respondió: {r}")
+    return r["id"]
+
+
 def facebook(token, video, texto, portada=None):
+    if es_horizontal(video):
+        return facebook_video(token, video, texto, portada)
     yo = cuenta(token)
     c = pedir("POST", f"{API}/{yo['id']}/video_reels", {"upload_phase": "start", "access_token": token})
     subir(c["upload_url"], token, video)
