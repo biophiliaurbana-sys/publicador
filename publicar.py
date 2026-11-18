@@ -92,7 +92,14 @@ def publicar_en(red, pag, video, texto, portada, ligero, prueba=None):
         return meta.instagram(token, video, texto, ligero, portada, prueba)
     if red == "youtube":
         titulo = texto.strip().splitlines()[0] if texto.strip() else pag["nombre"]
-        return youtube.subir(acceso_google(pag["youtube"]), video, titulo, texto, pag.get("youtube_privacidad", "public"))
+        acceso = acceso_google(pag["youtube"])
+        ident = youtube.subir(acceso, video, titulo, texto, pag.get("youtube_privacidad", "public"))
+        if portada:   # 18-nov: antes YouTube quedaba con la miniatura automática aunque el video trajera portada
+            try:
+                youtube.poner_portada(acceso, ident, portada)
+            except Exception as ex:   # el video ya está arriba: solo se avisa (p. ej. canal sin verificar con teléfono)
+                print(f"  ⚠ youtube: no pude poner la portada ({' '.join(str(ex).split())[:150]})")
+        return ident
     raise RuntimeError(f"No conozco la red '{red}'.")
 
 
