@@ -382,6 +382,48 @@ def cambiar_portadas(llave, repo, items):
                                   "Portadas cambiadas (publicador)")
 
 
+def recuperar_videos(llave, repo, items):
+    """recuperar.json en el repo de la página: lista de {"release": etiqueta}. Vuelve a adjuntar al release el video
+    que ya salió (lo baja de Facebook), porque al publicarlo se borra el adjunto. Sirve para armar recopilaciones
+    (ej. un "top" con los videos más vistos). Cada entrada hecha queda con "hecho" y el resultado."""
+    datos, sha = gh_repos.leer_archivo(llave, repo, "recuperar.json")
+    if not datos:
+        return
+    lista = json.loads(datos)
+    cambio = False
+    for e in lista:
+        if e.get("hecho"):
+            continue
+        item = next((i for i in items if isinstance(i, Lanzamiento) and i.repo == repo
+                     and i.etiqueta.split(" ", 1)[1] == e["release"]), None)
+        try:
+            if not item:
+                raise RuntimeError("no encontré ese release")
+            if any(a["name"].lower().endswith(".mp4") for a in item.archivos):
+                res = "ya tenía su video"
+            else:
+                vid = e.get("facebook") or item.estado.get("ids", {}).get("facebook")
+                if not vid:
+                    raise RuntimeError("no sé el id del video en Facebook")
+                archivo = os.path.join(AQUI, "bajados", re.sub(r"[^\w.-]", "_", e["release"]) + "-recuperado.mp4")
+                os.makedirs(os.path.dirname(archivo), exist_ok=True)
+                meta.bajar_video(SECRETOS[pagina(item.nombre)["meta"]], vid, archivo)
+                if PRUEBA:
+                    print(f"· recuperar {e['release']}: lo bajé de Facebook (prueba: no lo adjunto)")
+                    continue
+                gh_repos.subir_archivo(llave, repo, item.id, "video.mp4", archivo, "video/mp4")
+                res = f"video adjuntado ({os.path.getsize(archivo) // 1000000} MB, desde Facebook)"
+        except Exception as ex:
+            res = f"falló: {' '.join(str(ex).split())[:150]}"
+        e["hecho"], e["resultado"] = True, res
+        print(f"· recuperar {e['release']}: {res}")
+        cambio = True
+    if cambio and not PRUEBA:
+        gh_repos.escribir_archivo(llave, repo, "recuperar.json",
+                                  (json.dumps(lista, ensure_ascii=False, indent=2) + "\n").encode(), sha,
+                                  "Videos recuperados (publicador)")
+
+
 def main():
     if "--prueba-youtube" in sys.argv:
         return prueba_youtube()
@@ -418,6 +460,10 @@ def main():
             cambiar_portadas(llave, repo, items)
         except Exception as ex:
             print(f"{repo}: no pude cambiar portadas ({' '.join(str(ex).split())[:200]})")
+        try:
+            recuperar_videos(llave, repo, items)
+        except Exception as ex:
+            print(f"{repo}: no pude recuperar videos ({' '.join(str(ex).split())[:200]})")
     for item in items:
         try:
             revisar(item, ahora)

@@ -49,3 +49,9 @@ En el repo de la página, sube la imagen (jpg 1080x1920, menos de 2 MB) y agrega
 `{"release": "<etiqueta del release>", "imagen": "portadas/<archivo>.jpg"}`. En la siguiente vuelta el publicador:
 si el video ya salió, cambia la portada en Facebook y YouTube (Instagram no se puede por API); si aún no sale,
 reemplaza la portada del release. Marca la entrada con `"hecho": true` y el resultado.
+
+## Volver a tener el video de algo ya publicado (para recopilaciones)
+Al publicar, el publicador borra el video adjunto del release (para no llenar GitHub). Si la página lo necesita de nuevo
+(ej. un video "top" que junta los más vistos), agrega en su repo un `recuperar.json` con `[{"release": "<etiqueta>"}, …]`.
+En la siguiente vuelta el publicador baja cada video desde Facebook (con la llave de la página) y lo adjunta de nuevo a su
+release como `video.mp4`. Marca cada entrada con `"hecho": true` y el resultado.
