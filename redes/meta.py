@@ -36,6 +36,16 @@ def subir(url, token, video):
                                                          "file_size": str(len(cuerpo))})
 
 
+def bajar_video(token, video_id, destino):
+    """Baja un video ya publicado en la página (el archivo original que guarda Facebook)."""
+    fuente = pedir("GET", f"{API}/{video_id}?fields=source&access_token={token}").get("source")
+    if not fuente:
+        raise ErrorMeta("Facebook no entregó el archivo de ese video")
+    with urllib.request.urlopen(fuente, timeout=600) as r, open(destino, "wb") as f:
+        f.write(r.read())
+    return destino
+
+
 def version_ligera(video):
     """Copia con menos bitrate (mismo formato) para reintentar en Instagram, que a ratos se atraganta."""
     ligero = video.rsplit(".", 1)[0] + "_ligero.mp4"
