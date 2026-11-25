@@ -118,3 +118,58 @@ def mostrar(paginas, secretos, acceso_google, items):
                 youtube(pag["nombre"], acceso, ids)
             except Exception as ex:
                 print(f"{pag['nombre']}: no pude leer YouTube ({' '.join(str(ex).split())[:200]})")
+    try:
+        comentarios(paginas, secretos, acceso_google, items)
+    except Exception as ex:
+        print(f"no pude leer comentarios ({' '.join(str(ex).split())[:200]})")
+
+
+# ---------- COMENTARIOS (25-nov, pedido de Danko: "lee los comentarios para arreglar errores y mejorar") ----------
+# Solo lee. Filas "COMENTARIO" separadas por tabulaciones: página, red, fecha del comentario, video, texto. Sin nombres de personas.
+def _com(*campos):
+    print("COMENTARIO\t" + "\t".join("" if x is None else " ".join(str(x).split()) for x in campos))
+
+
+def comentarios(paginas, secretos, acceso_google, items, dias=15):
+    import datetime
+    desde = (datetime.datetime.utcnow() - datetime.timedelta(days=dias)).strftime("%Y-%m-%dT%H:%M")
+    print(f"\n==== Comentarios desde {desde} UTC (columnas: página, red, fecha, video, texto)")
+    for clave, pag in paginas.items():
+        if not pag:
+            continue
+        token = secretos.get(pag.get("meta", ""))
+        if token and "facebook" in pag["redes"]:
+            try:
+                yo = _meta(token, "me", fields="id")
+                fb = _meta(token, f"{yo['id']}/video_reels", fields="id,description,created_time", limit=80).get("data", [])
+                fb += _meta(token, f"{yo['id']}/videos", fields="id,description,created_time", limit=40).get("data", [])
+                vistos = set()
+                for v in fb:
+                    if v["id"] in vistos or v["created_time"][:16] < desde:
+                        continue
+                    vistos.add(v["id"])
+                    for c in _meta(token, f"{v['id']}/comments", fields="message,created_time", limit=100, filter="stream").get("data", []):
+                        if c.get("message"):
+                            _com(pag["nombre"], "FB", c["created_time"][:16], (v.get("description") or v["id"]).split("\n")[0][:50], c["message"][:400])
+            except Exception as ex:
+                print(f"{pag['nombre']}: no pude leer comentarios de Facebook ({' '.join(str(ex).split())[:200]})")
+        if "youtube" in pag["redes"]:
+            try:
+                acceso = acceso_google(pag["youtube"])
+                ids = [str(it.estado.get("ids", {}).get("youtube")) for it in items
+                       if (getattr(it, "nombre", "") or "").strip().lower() == clave and it.estado.get("ids", {}).get("youtube")]
+                for vid in list(dict.fromkeys(ids + subidos(acceso))):
+                    q = urllib.parse.urlencode({"part": "snippet", "videoId": vid, "maxResults": 100, "textFormat": "plainText"})
+                    try:
+                        hilos = _get(urllib.request.Request(f"https://www.googleapis.com/youtube/v3/commentThreads?{q}",
+                                                            headers={"Authorization": f"Bearer {acceso}"})).get("items", [])
+                    except RuntimeError as ex:
+                        if "403" in str(ex) and "disabled" in str(ex).lower():
+                            continue   # comentarios desactivados en ese video
+                        raise
+                    for h in hilos:
+                        s = h["snippet"]["topLevelComment"]["snippet"]
+                        if s["publishedAt"][:16] >= desde:
+                            _com(pag["nombre"], "YT", s["publishedAt"][:16], f"https://youtu.be/{vid}", s.get("textDisplay", "")[:400])
+            except Exception as ex:
+                print(f"{pag['nombre']}: no pude leer comentarios de YouTube ({' '.join(str(ex).split())[:200]})")
