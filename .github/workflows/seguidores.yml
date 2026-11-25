@@ -1,0 +1,23 @@
+# A mano: muestra los seguidores actuales de cada página (solo lee).
+name: Ver seguidores
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/project-thread-20s7x6]
+    paths: [herramientas/seguidores.py, .github/workflows/seguidores.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  ver:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - env:
+          SECRETOS: ${{ toJSON(secrets) }}
+        run: python herramientas/seguidores.py
